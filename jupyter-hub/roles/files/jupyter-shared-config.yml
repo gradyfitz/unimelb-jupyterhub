@@ -1,0 +1,12 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ jupyterhub_shared_claim_name }}
+spec:
+  # Use ephemeral storage since we don't need the shared drive to live.
+  storageClassName: db-eph-nfs-client-{{ groups['jupyterhub_storage_nodes'] | first | replace('.','-') }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ jupyterhub_shared_claim_space }}

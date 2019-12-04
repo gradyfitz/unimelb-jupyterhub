@@ -1,0 +1,85 @@
+proxy:
+  secretToken: "{{ random_seed['stdout'] }}"
+hub:
+  cookieSecret: "{{ random_hub_secret['stdout'] }}"
+  # Uncomment this in the deployed config.yml if you want changes in your
+  # image to be reflected for users. Risks slowing things down.
+  #pullPolicy: "Always"
+  # This image pull policy is the default behaviour.
+  #pullPolicy: "IfNotPresent"
+  db:
+    pvc:
+      accessModes:
+        - ReadWriteMany
+# NOTE: This silently fails if it isn't a string, so don't give a list.
+      storageClassName: db-eph-nfs-client-{{ groups['jupyterhub_storage_nodes'] | first | replace('.','-') }}
+# NOTE: This enables the jupyterlab interface by default, remove these
+# three lines if you don't want that.
+  extraConfig:
+    jupyterlab: |
+      c.Spawner.cmd = ['jupyter-labhub']
+# NOTE: This handles giving different images to different users, if you
+# have more complex rules, you can add them here.
+# Cf. https://github.com/jupyterhub/zero-to-jupyterhub-k8s/issues/1178
+# See: https://jupyterhub.readthedocs.io/en/stable/api/spawner.html
+# for options that can be changed on a per-user basis.
+    myExtraConfig: |
+      async def my_pre_spawn_hook(spawner):
+        username = spawner.user.name
+        if (username in {{ jupyterhub_assignment_admins }}):
+          c.KubeSpawner.image = "{{ jupyter_notebook_image }}:{{ jupyter_admin_notebook_tag }}"
+        else:
+          c.KubeSpawner.image = "{{ jupyter_notebook_image }}:{{ jupyter_notebook_tag }}"
+      c.KubeSpawner.pre_spawn_hook = my_pre_spawn_hook
+singleuser:
+  cpu:
+    limit: {{ user_cpu_limit }}
+    guarantee: {{ user_cpu_guarantee }}
+  memory:
+    limit: {{ user_memory_limit }}
+    guarantee: {{ user_memory_guarantee }}
+  storage:
+    dynamic:
+      storageClass: nfs-client-{{ groups['jupyterhub_storage_nodes'] | first | replace('.','-') }}
+    capacity: {{ user_storage_limit }}
+    extraVolumes:
+      - name: jupyterhub-shared
+        persistentVolumeClaim:
+          claimName: {{ jupyterhub_shared_claim_name }}
+    extraVolumeMounts:
+      - name: jupyterhub-shared
+        mountPath: {{ jupyterhub_shared_volume_mount }}
+# Enables Lab interface by default, remove if you don't want that.
+  defaultUrl: "/lab"
+  image:
+    name: {{ jupyter_notebook_image }}
+    tag: {{ jupyter_notebook_tag }}
+    # Uncomment this in the deployed config.yml if you want changes in your
+    # image to be reflected for users. Risks slowing things down.
+    #pullPolicy: "Always"
+    # This image pull policy is the default behaviour.
+    #pullPolicy: "IfNotPresent"
+    securityContext:
+      capabilities:
+        add: ["SYS_PTRACE"]
+  lifecycleHooks:
+    postStart:
+      exec:
+        command: ["gitpuller", "{{ notebook_pull_repo }}", "{{ notebook_pull_branch }}", "{{ notebook_pull_destination }}"]
+prePuller:
+  continuous:
+    enabled: true
+  extaImages:
+    jupyterAdminNotebookImage:
+      name: {{ jupyter_notebook_image }}
+      tag: {{ jupyter_admin_notebook_tag }}
+auth:
+  type: ldap
+  ldap:
+    server:
+      address: {{ ldap_server }}
+    dn:
+      templates:
+        - {{ ldap_template }}
+  admin:
+    users: {{ jupyterhub_admins }}

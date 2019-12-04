@@ -1,0 +1,221 @@
+---
+# OpenStack parameters, these will be set from the file you download from the
+# dashboard.
+cloud_auth_url: "{{lookup('env','OS_AUTH_URL')}}"
+cloud_username: "{{lookup('env','OS_USERNAME')}}"
+cloud_password: "{{lookup('env','OS_PASSWORD')}}"
+cloud_project_name: "{{lookup('env','OS_PROJECT_NAME')}}"
+# Where the volume should be available to be attached to.
+volume_availability_zone: "melbourne-qh2-uom"
+# The area the volume should be located.
+volume_region: "Melbourne"
+# Whether to attach volumes at all. Use true to attach volumes to instances
+# and false to deploy without attached volumes. A warning here that if no
+# volumes are attached, ephemeral storage will be used, meaning all data will be
+# lost if you delete the instance or the instance dies for whatever reason.
+# NOTE: I've since dropped this feature since it complicates things, where it
+# initially didn't. To make this work, you'll need to add some additional logic
+# to add a node to use for storage (I've tried to keep this as unobtrusive as
+# possible, you should be able to simply add a host to the jupyterhub storage
+# group).
+attach_volumes: true
+# The number of gigabytes each attached volume should be.
+# NOTE: I've replaced this so that just a single NFS volume is used, it may be
+# worth building a ceph cluster and attaching that instead, but jupyterhub
+# assumes a single storage class and gives you a 500 error when you don't make
+# that happen.
+volume_size_gb: "200"
+# The number of instances to attach volumes to.
+volume_instances: 1
+# The name of the security group (this just needs to be consistent, no
+# convention is required)
+security_group_name: "JupyterHub-sg"
+# What port to open for JupyterHub's external interface. This isn't currently
+# configurable, since I leave the LoadBalancer to work out the port at this
+# point.
+security_rule_interface_port: "80"
+# These can probably be cleaned up, these two ports are used for https
+# negotiation.
+security_rule_interface_port_https: "8443"
+security_rule_interface_port_https_negotiation: "443"
+# Where to make the instance available (melbourne-qh2-uom is only available from
+# inside the university, whereas melbourne-qh2 might be available to other
+# systems)
+instance_availability_zone: "melbourne-qh2-uom"
+# The number of instances to spin up on nectar.
+instance_count: 8
+# The prefix for instance names (part preceding instance number).
+instance_name_prefix: "JupyterHub-new-"
+# The suffix for instance names.
+instance_name_suffix: "-compute"
+# The prefix for volume names (part preceding volume number). Warning: the glob
+# on this is pretty basic, so if you have other instances that match the
+# prefix* pattern, please make it different here.
+volume_name_prefix: "JupyterHub-new-"
+# The suffix for volume names.
+volume_name_suffix: "-volume"
+# =============================================================================
+# The kind of compute instance to spin up (this will depend on what you have
+# allocated to use, so you may need to change it).
+instance_flavour: "uom.general.8c32g"
+# Where to locate the node (this generally doesn't need to be changed).
+instance_region: "Melbourne"
+# What image to use. The original system will be built and tested with this
+# image, but a different image could be used, however the playbook will assume
+# Docker is installed.
+# NeCTAR Ubuntu 18.04 LTS (Bionic) amd64 (pre-installed murano-agent with Docker) [v9]
+instance_image: "703d4362-dea8-425b-8654-313d50d40e03"
+# The name of the non-root user on the image.
+image_user: ubuntu
+# =============================================================================
+# Set the name of the key pair you have registered in the NeCTAR dashboard.
+# Reuse the same key pair because it allows us to ssh in after the machine has
+# been created.
+instance_key_pair_name: "jupyterhub-key"
+# =============================================================================
+# The provider for the network, you may need to change this based on what
+# visibility you want to have for students.
+instance_network: "Classic Provider"
+# What security groups to use.
+instance_security_groups: "{{ security_group_name }},default,http,ssh"
+# Where to mount the persistent volume.
+volume_mount_directory: "/mnt/pv1"
+# The name of the folder inside the persistent volume to store files. This is
+# kept uniform across all isntances to allow the volume to be remounted if the
+# compute instance itself dies.
+# {{ volume_mount_directory }}/{{ local_pv_directory }}
+local_pv_directory: "shared"
+# Whether to use the ephemeral volume for the database (JupyterHub database
+# state is not important beyond keeping login and kernel state information, so
+# this is fine, but if you have stacks of storage, you can just put it on the
+# persistent volume instead). If this is set to false,
+# ephemeral_volume_share_directory is used.
+use_ephemeral_database: True
+# Use ephemeral volume for docker data (recommended if OS storage is small).
+use_ephemeral_docker: False
+# Use ephemeral volume for kubelet (recommended if OS storage is small).
+use_ephemeral_kubelet: False
+# The location of the ephemeral device (should be already formatted).
+# NOTE: This device may be different for the flavour you use, this is hard-coded
+# as some images have multiple ephemeral block devices, and for the flavour
+# we're using, this is the middle device.
+ephemeral_volume: "/dev/vda"
+# Directory to share from the ephemeral volume. I assume the disk is already
+# mounted because it is in my image. I also make this a subdirectory rather than
+# the straight mountpoint as in my case the persistent volume is mounted inside
+# the ephemeral volume.
+ephemeral_volume_share_directory: "/mnt/pv2/shared"
+# Add ephemeral storage to the storage classes for user data. Not so safe, but
+# if you're like us and have 2TB of ephemeral storage, it may be an attractive
+# option.
+# TODO: Actually implement this -> Add lines to storage classes list.
+ephemeral_persistent_storage: False
+
+# ============================================================================
+# This variable determines where the nfs shares will be located, they will take
+# the form
+# {{ nfs_share_directory_prefix }}{{ Machine IP }}{{ nfs_share_directory_suffix }}
+nfs_share_directory_prefix: "/mnt/"
+nfs_share_directory_suffix: "/"
+# Similar to above, but for the ephemeral partitions used for the database.
+nfs_ephemeral_share_directory_prefix: "/mnt/eph-"
+nfs_ephemeral_share_directory_suffix: "/"
+
+# =============================================================================
+# This variable determines whether to allow non-management Kubernetes pods
+# (basically tasks) to be run on the management node. Set to True to use a
+# dedicated node and False to use the node as part of the computing part of the
+# Kubernetes cluster as well.
+untainted_control_node: True
+
+# ============================================================================
+# This variable determines what chart (and hence which version) to install
+# jupyterhub with, ( you can see release versions at
+# https://github.com/jupyterhub/helm-chart#versions-coupled-to-each-chart-release ).
+# NOTE: You may find the wrong version of jupyterhub is grabbed, you can run
+#   sudo su -
+#   helm search jupyterhub
+# To find the actual version which is present and use that instead.
+jupyterhub_version: "0.8.2"
+
+# =============================================================================
+# The namespace for resources to be allocated in by Kubernetes for JupyterHub
+jupyterhub_namespace: "jhub"
+
+# ============================================================================
+# What JupyterHub's helm chart will be called.
+jupyterhub_name: "jupyterhub"
+
+# ============================================================================
+# These limit the resources that each student has access to.
+# CPU usage limit (optimistic, upper end), this is CPU count, so with 64 VCPUs,
+# 0.5 would mean 128 students can max out their share at once, if less than 128
+# students are using the system, in principle they won't see any degradation in
+# performance.
+user_cpu_limit: "0.5"
+# CPU usage guarantee (lower end), iirc this won't schedule if you run out of
+# CPUs, so the limit of the system on 64 VCPUs at 0.125 is 512 students.
+user_cpu_guarantee: "0.125"
+# Memory usage limit (optimistic, upper end), similar to the above.
+user_memory_limit: "1G"
+# Memory usage limit (lower end), similar to above. Note also that swap is
+# turned off, so this is a hard limit.
+user_memory_guarantee: "512M"
+# Limit for disk space for a single user.
+user_storage_limit: "256Mi"
+
+# ============================================================================
+# This is the address of the LDAP server to use.
+# For unimelb this is detailed at:
+# https://unimelb.service-now.com/it?id=kb_article&sys_id=210493954fea6e406b77a3b11310c7e4
+ldap_server: "centaur.unimelb.edu.au"
+# The organisation name.
+ldap_organisation: "unimelb"
+# LDAP template showing Where to extract the username from.
+ldap_template: "uid={{ '{' }}username{{ '}' }},ou=people,o={{ ldap_organisation }}"
+# Admin usernames.
+# ============================================================================
+# JupyterHub settings.
+# CUSTOMISATION NOTE: The "Create config.yml for JupyterHub helm chart" task in
+# the playbook can be changed in a fairly straightforward way to utilise
+# different images for different users (as well as customisation beyond that),
+# so if you need further customisation, it shouldn't be too hard to jump in.
+# NOTE: You can add other admins easily later from any account you make, so
+# don't fret too much about adding everyone at once.
+jupyterhub_admins: "['gradyf']"
+# List of users who can create assignments.
+jupyterhub_assignment_admins: "{{ jupyterhub_admins }}"
+# Image to use for jupyterhub notebooks.
+jupyter_notebook_image: "gradyfitz/comp20003-jupyter-c-kernel"
+# Image tag for image to use for jupyterhub notebooks. If you're using your own
+# managed/produced image, latest will probably be fine, otherwise pick a
+# specific tag from the release
+jupyter_notebook_tag: "user"
+# The image to use for all users who can create assignments.
+jupyter_admin_notebook_tag: "admin"
+# The url of the JupyterHub server.
+jupyter_hub_nb_address: "comp20003-jh.eng.unimelb.edu.aurepo=&urlpath=lab%2Ftree%2Fcomp20003-notebooks%2F"
+# The url to the notebook repository.
+notebook_pull_repo: "https://github.com/gradyfitz/comp20003-notebooks"
+# The branch to pull from.
+notebook_pull_branch: "master"
+# The foler to synchronise notebooks to.
+notebook_pull_destination: "workshops"
+
+# ============================================================================
+# JupyterHub helper settings.
+# The template used for creating the persistent volume claim is in
+# roles/files/jupyter-shared-config.yml if you want to make any more substantial
+# changes to it.
+# Name of jupyterhub shared volume claim.
+jupyterhub_shared_claim_name: "jupyterhub-shared-pv"
+# Space to allocate for jupyterhub shared volume. This only takes space a single
+# time across the cluster, so you can safely make it decently large.
+jupyterhub_shared_claim_space: "10Gi"
+# Where to mount the shared volume in each image.
+jupyterhub_shared_volume_mount: "/home/shared/"
+
+# ================================= Constants =================================
+# Anything appearing below here is just for code clarity's sake and won't reach
+# outside the script, so can be freely changed and still remain consistent, but
+# shouldn't need to be.
