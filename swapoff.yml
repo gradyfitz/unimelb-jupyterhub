@@ -1,0 +1,87 @@
+---
+# This script turns off swap on all instances.
+- name: Check OpenStack image facts for personal project.
+  hosts: localhost
+
+  vars_files:
+    - variables/vars.yml
+  tasks:
+    # Need this to work out IP addresses of all nodes to run on, any other
+    # method will suffice.
+    - name: Get instance facts
+      os_server_facts:
+        api_timeout: 50 # Seconds(?)
+        auth:
+          auth_url: "{{ cloud_auth_url }}"
+          username: "{{ cloud_username }}"
+          password: "{{ cloud_password }}"
+          project_name: "{{ cloud_project_name }}"
+        server: "{{ instance_name_prefix }}*"
+        wait: yes
+
+    # Uses above facts to set up list of all nodes to run on.
+    - name: Add compute hosts to in-memory inventory
+      add_host:
+        groups: jupyterhub_nodes
+        name: "{{ item['accessIPv4'] }}"
+      loop: "{{ openstack_servers }}"
+
+    # This node is arbitrary, but can handle anything where a single origin node
+    # is required to manage system setup correctly.
+    # NOTE: This _is_ idempotent in the presence of scaling. Nodes are retrieved
+    # in descending order of creation date, hence the first element will remain
+    # the first element _unless_ the first element is removed. If these
+    # guarantees are not provided in other cloud APIs, more sophisticated
+    # election mechanisms may be required.
+    - name: Elect cluster setup manager node
+      add_host:
+        groups: jupyterhub_head_node
+        name: "{{ (openstack_servers | first)['accessIPv4'] }}"
+
+    # Store all nodes with storage attached.
+    - name: Add hosts with storage attached to in-memory inventory
+      add_host:
+        groups: jupyterhub_storage_nodes
+        name: "{{ item['accessIPv4'] }}"
+      loop: "{{ openstack_servers }}"
+      when: (item['properties']['os-extended-volumes:volumes_attached'] | length) > 0
+
+    # NOTE: known-hosts module is not idempotent either, so simple shell script
+    #   appears to be just as effective and less convoluted. Could also do a
+    #   lineinfile I believe, but seems to be acceptable for Ansible at present
+    #   not to.
+    # Trust all the newly created servers.
+    - name: Add fingerprints to known hosts file
+      shell: "ssh-keyscan -H {{ item['accessIPv4'] }} >> ~/.ssh/known_hosts"
+      loop: "{{ openstack_servers }}"
+
+- name: Wait for all machines to become ready
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Wait for machines
+      wait_for_connection:
+        sleep: 30
+      retries: 3
+
+- name: Prepare nodes for cluster
+  hosts: jupyterhub_nodes
+  become_user: root
+  become: yes
+  vars_files: variables/vars.yml
+
+  # no_proxy content should be updated.
+  tasks:
+    # Note, this task hasn't been tested, if it breaks the script follow the
+    # steps in the readme to restart this service manually.
+    - name: Restart time sync service on all hosts
+      become: yes
+      systemd:
+        daemon_reload: yes
+        name: systemd-timesyncd.service
+        state: restarted
+
+    # This is required by Kubernetes at the time of install. In the future this
+    # directive may not be necessary.
+    - name: Turn off swap for all devices
+      shell: swapoff -a

@@ -135,6 +135,9 @@ persistent data should remain.
 ### Clocks Getting Out of Sync
 Run `sudo systemctl restart systemd-timesyncd.service` on all hosts.
 
+Note: Alternatively, the `./swapoff.sh <private key path>` script will perform
+  this task (idempotent).
+
 ### Disk Fills Up
 Sometimes your operating disk might fill up, this can bring down
 the entire cluster. A few things which have helped for me:
@@ -181,6 +184,8 @@ NOTE: The Docker and Kubelet changes above would ideally be made in
   `cat /var/log/syslog | tail -n 50` to see where this occurs, for
   us, swap turned on again for some reason at one point, meaning we
   needed to turn it off with `sudo swapoff -a`
+- Note: Alternatively, the `./swapoff.sh <private key path>` script will perform
+  the turning off of swap after a restart (idempotent).
 
 ## Ephemeral Issues
 These issues may be fixed before we need to do anything about them in practice.
