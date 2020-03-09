@@ -1,0 +1,16 @@
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: {{ ceph_shared_fs_name }}
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    replicated:
+      size: {{ ceph_replications }}
+  dataPools:
+    - replicated:
+        size: {{ ceph_replications }}
+  preservePoolsOnDelete: true
+  metadataServer:
+    activeCount: 1
+    activeStandby: true
