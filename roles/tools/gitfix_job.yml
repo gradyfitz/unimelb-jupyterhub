@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitfix-gradyf
+spec:
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      containers:
+        - name: jh
+          image: "gradyfitz/comp20003-jupyter-c-kernel:admin"
+          command: ['/bin/bash', '-c', 'if [[ -d /home/mount/workshops/.git ]]; then echo "rm -rf /home/mount/workshops/.git" && rm -rf /home/mount/workshops/.git && echo "mv /home/mount/workshops/ /home/mount/workshops_old/" && mv /home/mount/workshops/ /home/mount/workshops_old/ && echo "exit 0" && exit 0; fi && if [[ -d /home/mount/workshops ]]; then echo "mv /home/mount/workshops /home/mount/workshops_old" && mv /home/mount/workshops /home/mount/workshops_old && echo "exit 0" && exit 0; fi']
+          #command: ['/bin/bash', '-c', 'ls /home']
+          volumeMounts:
+            - name: mounted-storage
+              mountPath: /home/mount
+      volumes:
+        - name: mounted-storage
+          persistentVolumeClaim:
+            claimName: claim-gradyf
+      restartPolicy: Never

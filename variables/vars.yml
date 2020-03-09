@@ -20,13 +20,9 @@ volume_region: "Melbourne"
 # group).
 attach_volumes: true
 # The number of gigabytes each attached volume should be.
-# NOTE: I've replaced this so that just a single NFS volume is used, it may be
-# worth building a ceph cluster and attaching that instead, but jupyterhub
-# assumes a single storage class and gives you a 500 error when you don't make
-# that happen.
-volume_size_gb: "200"
+volume_size_gb: "10"
 # The number of instances to attach volumes to.
-volume_instances: 1
+volume_instances: 47
 # The name of the security group (this just needs to be consistent, no
 # convention is required)
 security_group_name: "JupyterHub-sg"
@@ -43,35 +39,35 @@ security_rule_interface_port_https_negotiation: "443"
 # systems)
 instance_availability_zone: "melbourne-qh2-uom"
 # The number of instances to spin up on nectar.
-instance_count: 8
+instance_count: 47
 # The prefix for instance names (part preceding instance number).
-instance_name_prefix: "JupyterHub-new-"
+instance_name_prefix: "JupyterHub-"
 # The suffix for instance names.
 instance_name_suffix: "-compute"
 # The prefix for volume names (part preceding volume number). Warning: the glob
 # on this is pretty basic, so if you have other instances that match the
 # prefix* pattern, please make it different here.
-volume_name_prefix: "JupyterHub-new-"
+volume_name_prefix: "JupyterHub-"
 # The suffix for volume names.
 volume_name_suffix: "-volume"
 # =============================================================================
 # The kind of compute instance to spin up (this will depend on what you have
 # allocated to use, so you may need to change it).
-instance_flavour: "uom.general.8c32g"
+instance_flavour: "uom.general.12c48g"
 # Where to locate the node (this generally doesn't need to be changed).
 instance_region: "Melbourne"
 # What image to use. The original system will be built and tested with this
 # image, but a different image could be used, however the playbook will assume
 # Docker is installed.
-# NeCTAR Ubuntu 18.04 LTS (Bionic) amd64 (pre-installed murano-agent with Docker) [v9]
-instance_image: "703d4362-dea8-425b-8654-313d50d40e03"
+# NeCTAR Ubuntu 18.04 LTS (Bionic) amd64 (with Docker)
+instance_image: "215f9775-483c-4e0a-b703-d21a5c966f2e"
 # The name of the non-root user on the image.
 image_user: ubuntu
 # =============================================================================
 # Set the name of the key pair you have registered in the NeCTAR dashboard.
 # Reuse the same key pair because it allows us to ssh in after the machine has
 # been created.
-instance_key_pair_name: "jupyterhub-key"
+instance_key_pair_name: "comp20008-jupyterhub-kp"
 # =============================================================================
 # The provider for the network, you may need to change this based on what
 # visibility you want to have for students.
@@ -110,6 +106,32 @@ ephemeral_volume_share_directory: "/mnt/pv2/shared"
 # option.
 # TODO: Actually implement this -> Add lines to storage classes list.
 ephemeral_persistent_storage: False
+# ============================ Storage Handling ==============================
+# This option uses NFS as the storage protocol, only one of NFS & Ceph should
+# be used.
+install_nfs: False
+# This option uses Ceph as the storage protocol using Rook. This is the
+# recommended option, though it involves additional storage.
+install_ceph: True
+# =========================== Ceph Settings ==================================
+ceph_data_path: "/mnt/cephdisk/ceph"
+ceph_cluster_data: "/mnt/cephdisk/data"
+ceph_replications: "3"
+# For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
+ceph_image: "ceph/ceph:v14.2.5"
+ceph_cluster_id: "rook-ceph"
+ceph_block_storage_name: "rook-ceph-block"
+# Best to use xfs for the ceph volume. This may also be a better choice when
+# using NFS, but I haven't tested.
+# https://docs.ceph.com/docs/jewel/rados/configuration/filesystem-recommendations/
+mount_filesystem_type: "xfs"
+# I think you have to use the shared filesystem, but most of the other stuff is
+# already set up.
+ceph_use_shared_fs: True
+ceph_shared_fs_name: "myfs"
+# Can be arbitrary as far as I know.
+ceph_volume_pool: "myfs-data0"
+ceph_shared_fs_storage_name: "csi-cephfs"
 
 # ============================================================================
 # This variable determines where the nfs shares will be located, they will take
@@ -127,6 +149,13 @@ nfs_ephemeral_share_directory_suffix: "/"
 # dedicated node and False to use the node as part of the computing part of the
 # Kubernetes cluster as well.
 untainted_control_node: True
+
+# =============================================================================
+# This is the Docker version, it is important to look for CVEs fixed as a lot
+# of power is given to students. Try not to sit too cutting edge as some errors
+# may not be well solved.
+# =============================================================================
+docker_version: "docker-ce=18.06.3~ce~3-0~ubuntu"
 
 # ============================================================================
 # This variable determines what chart (and hence which version) to install
@@ -152,17 +181,17 @@ jupyterhub_name: "jupyterhub"
 # 0.5 would mean 128 students can max out their share at once, if less than 128
 # students are using the system, in principle they won't see any degradation in
 # performance.
-user_cpu_limit: "0.5"
+user_cpu_limit: "1.0"
 # CPU usage guarantee (lower end), iirc this won't schedule if you run out of
 # CPUs, so the limit of the system on 64 VCPUs at 0.125 is 512 students.
-user_cpu_guarantee: "0.125"
+user_cpu_guarantee: "0.75"
 # Memory usage limit (optimistic, upper end), similar to the above.
-user_memory_limit: "1G"
+user_memory_limit: "4G"
 # Memory usage limit (lower end), similar to above. Note also that swap is
 # turned off, so this is a hard limit.
-user_memory_guarantee: "512M"
+user_memory_guarantee: "2G"
 # Limit for disk space for a single user.
-user_storage_limit: "256Mi"
+user_storage_limit: "1Gi"
 
 # ============================================================================
 # This is the address of the LDAP server to use.
@@ -182,7 +211,7 @@ ldap_template: "uid={{ '{' }}username{{ '}' }},ou=people,o={{ ldap_organisation 
 # so if you need further customisation, it shouldn't be too hard to jump in.
 # NOTE: You can add other admins easily later from any account you make, so
 # don't fret too much about adding everyone at once.
-jupyterhub_admins: "['gradyf']"
+jupyterhub_admins: "['gfitzpatrick']"
 # List of users who can create assignments.
 jupyterhub_assignment_admins: "{{ jupyterhub_admins }}"
 # Image to use for jupyterhub notebooks.
@@ -194,9 +223,9 @@ jupyter_notebook_tag: "user"
 # The image to use for all users who can create assignments.
 jupyter_admin_notebook_tag: "admin"
 # The url of the JupyterHub server.
-jupyter_hub_nb_address: "comp20003-jh.eng.unimelb.edu.aurepo=&urlpath=lab%2Ftree%2Fcomp20003-notebooks%2F"
+#jupyter_hub_nb_address: "comp20003-jh.eng.unimelb.edu.aurepo=&urlpath=lab%2Ftree%2Fcomp20003-notebooks%2F"
 # The url to the notebook repository.
-notebook_pull_repo: "https://github.com/gradyfitz/comp20003-notebooks"
+notebook_pull_repo: "https://github.com/gradyfitz/comp20008-notebooks"
 # The branch to pull from.
 notebook_pull_branch: "master"
 # The foler to synchronise notebooks to.

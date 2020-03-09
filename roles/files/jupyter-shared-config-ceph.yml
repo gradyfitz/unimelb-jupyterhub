@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ jupyterhub_shared_claim_name }}
+spec:
+  # Use ephemeral storage since we don't need the shared drive to live.
+  storageClassName: {{ ceph_use_shared_fs | ternary(ceph_shared_fs_storage_name, ceph_block_storage_name) }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ jupyterhub_shared_claim_space }}
+  volumeMode: {{ ceph_use_shared_fs | ternary("Filesystem", "Block") }}

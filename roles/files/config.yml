@@ -10,9 +10,11 @@ hub:
   db:
     pvc:
       accessModes:
-        - ReadWriteMany
+        - ReadWriteOnce
 # NOTE: This silently fails if it isn't a string, so don't give a list.
-      storageClassName: db-eph-nfs-client-{{ groups['jupyterhub_storage_nodes'] | first | replace('.','-') }}
+      #storageClassName: db-eph-nfs-client-{{ groups['jupyterhub_storage_nodes'] | first | replace('.','-') }}
+      storageClassName: {{ ceph_use_shared_fs | ternary(ceph_shared_fs_storage_name, ceph_block_storage_name) }}
+      volumeMode: Block
 # NOTE: This enables the jupyterlab interface by default, remove these
 # three lines if you don't want that.
   extraConfig:
@@ -40,7 +42,9 @@ singleuser:
     guarantee: {{ user_memory_guarantee }}
   storage:
     dynamic:
-      storageClass: nfs-client-{{ groups['jupyterhub_storage_nodes'] | first | replace('.','-') }}
+      #storageClass: nfs-client-{{ groups['jupyterhub_storage_nodes'] | first | replace('.','-') }}
+      storageClass: {{ ceph_use_shared_fs | ternary(ceph_shared_fs_storage_name, ceph_block_storage_name) }}
+      volumeMode: Block
     capacity: {{ user_storage_limit }}
     extraVolumes:
       - name: jupyterhub-shared

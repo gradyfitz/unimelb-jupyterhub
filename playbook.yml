@@ -127,7 +127,7 @@
     - name: Create instances with attached volume.
       os_server:
         api_timeout: 3600 # Seconds(?)
-        timeout: 3600
+        timeout: 600
         auth:
           auth_url: "{{ cloud_auth_url }}"
           username: "{{ cloud_username }}"
@@ -151,7 +151,7 @@
     - name: Create instances without attached volume.
       os_server:
         api_timeout: 3600 # Seconds(?)
-        timeout: 3600
+        timeout: 600
         auth:
           auth_url: "{{ cloud_auth_url }}"
           username: "{{ cloud_username }}"
@@ -167,8 +167,10 @@
         security_groups: "{{ instance_security_groups }}"
         state: present
         wait: yes # Wait up to timeout seconds until instance created
-      with_sequence: start={{ volume_instances + 1 }} end={{ instance_count }}
-      when: attach_volumes
+      # Make end +1 also to ensure we never have to count backwards (Ansible
+      # doesn't like you asking it to do that).
+      with_sequence: start={{ volume_instances + 1 }} end={{ instance_count + 1 }}
+      when: attach_volumes and item <= instance_count
 
     # Creates the instance with required properties (without volumes).
     - name: Create all instances without attached volume.
@@ -251,6 +253,17 @@
         sleep: 30
       retries: 3
 
+- name: Check we still have all the nodes along for the ride.
+  hosts: jupyterhub_nodes
+  become_user: root
+  become: yes
+  vars_files: variables/vars.yml
+  tasks:
+    - name: Fail if we don't have all hosts along for the ride.
+      fail:
+        msg: "Missing some nodes, try rerunning the playbook. {{ ((ansible_play_hosts | length) }} of {{ (groups['jupyterhub_nodes'] | length)) }}"
+      when: (ansible_play_hosts | length) != instance_count
+
 - name: Prepare nodes for cluster
   hosts: jupyterhub_nodes
   become_user: root
@@ -295,39 +308,71 @@
       shell: lsblk -o NAME | tail -n 1
       register: pv_dev
 
+    # Ubuntu often won't have xfs, so we have to install it.
+    - name: Install xfs tools
+      apt:
+        state: present
+        update_cache: yes
+        name: xfsprogs
+
     # Can't resize online volume if the source and destination size are the same
     # it seems, might be a way to get around this, but I don't need to do that
     # and it's probably easier to resize using an additional playbook later.
     - name: Create filesystem for all volumes
       filesystem:
         dev: "/dev/{{ pv_dev['stdout_lines'][0] }}"
-        fstype: ext4
+        fstype: "{{ mount_filesystem_type }}"
       loop: "{{ groups['jupyterhub_storage_nodes'] }}"
       when: attach_volumes and item == hostvars[inventory_hostname]['ansible_default_ipv4']['address']
 
     # Note: This is done whether we have volumes attached or not.
-    - name: Create directory to mount
+    - name: Create directory to mount (NFS)
       file:
         path: "{{ volume_mount_directory }}"
         state: directory
+      when: install_nfs
 
-    - name: Mount volume directory
+    - name: Create directory to mount (Ceph)
+      file:
+        path: "{{ ceph_data_path }}"
+        state: directory
+      when: install_ceph
+
+    - name: Mount volume directory (NFS)
       mount:
         path: "{{ volume_mount_directory }}"
         src: "/dev/{{ pv_dev['stdout_lines'][0] }}"
         state: mounted
-        fstype: ext4
+        fstype: "{{ mount_filesystem_type }}"
       loop: "{{ groups['jupyterhub_storage_nodes'] }}"
-      when: attach_volumes and item == hostvars[inventory_hostname]['ansible_default_ipv4']['address']
+      when: attach_volumes and item == hostvars[inventory_hostname]['ansible_default_ipv4']['address'] and install_nfs
 
-    - name: Give all permissions to volumes
+    - name: Mount volume directory (Ceph)
+      mount:
+        path: "{{ ceph_data_path }}"
+        src: "/dev/{{ pv_dev['stdout_lines'][0] }}"
+        state: mounted
+        fstype: "{{ mount_filesystem_type }}"
+      loop: "{{ groups['jupyterhub_storage_nodes'] }}"
+      when: attach_volumes and item == hostvars[inventory_hostname]['ansible_default_ipv4']['address'] and install_ceph
+
+    - name: Give all permissions to volumes (NFS)
       become: yes
       file:
         path: "{{ volume_mount_directory }}"
         # Might want to restrict this more, but go wild for now.
         mode: 777
       loop: "{{ groups['jupyterhub_storage_nodes'] }}"
-      when: attach_volumes and item == hostvars[inventory_hostname]['ansible_default_ipv4']['address']
+      when: attach_volumes and item == hostvars[inventory_hostname]['ansible_default_ipv4']['address'] and install_nfs
+
+    - name: Give all permissions to volumes (Ceph)
+      become: yes
+      file:
+        path: "{{ ceph_data_path }}"
+        # Might want to restrict this more, but go wild for now.
+        mode: 777
+      loop: "{{ groups['jupyterhub_storage_nodes'] }}"
+      when: attach_volumes and item == hostvars[inventory_hostname]['ansible_default_ipv4']['address'] and install_ceph
 
 - name: Install required software on all nodes
   hosts: jupyterhub_nodes
@@ -344,7 +389,7 @@
     - name: Install docker
       apt:
         state: present
-        name: docker
+        name: "{{ docker_version }}"
 
     - name: Install pip
       apt:
@@ -355,11 +400,19 @@
       apt:
         state: present
         name: nfs-kernel-server
+      # when: install_nfs
 
     - name: Install NFS client
       apt:
         state: present
         name: nfs-common
+      # when: install_nfs
+
+    # Required for ceph, doesn't really hurt to have it otherwise either.
+    - name: Install lvm2
+      apt:
+        state: present
+        name: lvm2
 
     # This is required by Kubernetes at the time of install. In the future this
     # directive may not be necessary.
@@ -423,7 +476,7 @@
         name: kubelet
         state: restarted
 
-- name: Set up NFS on all hosts
+- name: Set up storage on all hosts
   hosts: jupyterhub_nodes
   become_user: root
   become: yes
@@ -436,6 +489,7 @@
         mode: "777"
         owner: "nobody"
         group: "nogroup"
+      when: install_nfs
 
     - name: Allow all jupyterhub nodes to access shared files.
       lineinfile:
@@ -445,6 +499,7 @@
         mode: "777"
         state: present
       loop: "{{ groups['jupyterhub_nodes'] }}"
+      when: install_nfs
 
     - name: Create directory for ephemeral NFS share
       file:
@@ -453,6 +508,7 @@
         mode: "777"
         owner: "nobody"
         group: "nogroup"
+      when: install_nfs
 
     - name: Allow all jupyterhub nodes to access ephemeral shared files.
       lineinfile:
@@ -462,6 +518,7 @@
         mode: "777"
         state: present
       loop: "{{ groups['jupyterhub_nodes'] }}"
+      when: install_nfs
 
     - name: Allow all jupyterhub nodes to access shared ephemeral folders.
       lineinfile:
@@ -471,16 +528,19 @@
         mode: "777"
         state: present
       loop: "{{ groups['jupyterhub_nodes'] }}"
+      when: install_nfs
 
     - name: Export filesystem
       command: exportfs -a
       become: yes
+      when: install_nfs
 
     - name: Restart NFS server
       systemd:
         daemon_reload: yes
         name: nfs-kernel-server
         state: restarted
+      when: install_nfs
 
     - name: Create directories for all NFS shares
       file:
@@ -490,6 +550,7 @@
         owner: "nobody"
         group: "nogroup"
       loop: "{{ groups['jupyterhub_nodes'] }}"
+      when: install_nfs
 
     - name: Create directories for all ephemeral NFS shares
       file:
@@ -499,6 +560,7 @@
         owner: "nobody"
         group: "nogroup"
       loop: "{{ groups['jupyterhub_nodes'] }}"
+      when: install_nfs
 
     - name: Mount NFS shares
       mount:
@@ -507,6 +569,7 @@
         state: mounted
         fstype: nfs
       loop: "{{ groups['jupyterhub_nodes'] }}"
+      when: install_nfs
 
 - name: Set up cluster control-plane
   hosts: jupyterhub_head_node
@@ -625,7 +688,7 @@
     # We can't taint control nodes _before_ the network has come up, or the
     # network will fail to come up.
     - name: Wait for pods to come up
-      shell: kubectl get pods --all-namespaces -o json
+      shell: kubectl get pods --namespace kube-system -o json
       register: kubectl_get_pods
       until: kubectl_get_pods.stdout|from_json|json_query('items[*].status.phase')|unique == ["Running"]
       delay: 30
@@ -749,7 +812,7 @@
       become: yes
 
     - name: Wait for tiller pod to come up
-      shell: kubectl get pods --all-namespaces -o json
+      shell: kubectl get pods --namespace kube-system -o json
       register: kubectl_get_pods
       until: kubectl_get_pods.stdout|from_json|json_query('items[*].status.phase')|unique == ["Running"]
       delay: 30
@@ -767,47 +830,127 @@
   become: yes
   vars_files: variables/vars.yml
   tasks:
+    # Ceph/Rook setup.
+    - name: Add Rook helm chart repo.
+      command: "helm repo add rook-release https://charts.rook.io/release"
+      args:
+        creates: "./rook_helm_installed"
+      when: install_ceph
+
+    - name: Install Rook.
+      command: "helm install --namespace rook-ceph rook-release/rook-ceph"
+      args:
+        creates: "./rook_helm_installed"
+      when: install_ceph
+
+    - name: Create folder for ceph data.
+      file:
+        path: "{{ ceph_cluster_data }}"
+        state: "directory"
+        mode: "777"
+      when: install_ceph
+
+    - name: Mark Rook installed.
+      command: "touch ./rook_helm_installed"
+      args:
+        creates: "./rook_helm_installed"
+      when: install_ceph
+
+    # Change the template in roles/files/ceph-cluster.yml to modify what happens
+    # here.
+    - name: Template cluster config.
+      template:
+        dest: ./ceph-cluster.yml
+        src: roles/files/ceph-cluster.yml
+        mode: "777"
+      become: yes
+      when: install_ceph
+
+    # Create cluster resources.
+    - name: Create Ceph cluster.
+      command: "kubectl create -f ceph-cluster.yml"
+      args:
+        creates: "./rook_ceph_setup"
+      when: install_ceph
+
+    # Add storage class (Block).
+    - name: Template Ceph storage type.
+      template:
+        dest: ./ceph-storageclass.yml
+        src: roles/files/ceph-storageclass.yml
+        mode: "777"
+      become: yes
+      when: install_ceph and not ceph_use_shared_fs
+
+    - name: Create Ceph storage type.
+      command: "kubectl create -f ceph-storageclass.yml"
+      args:
+        creates: "./rook_ceph_setup"
+      when: install_ceph and not ceph_use_shared_fs
+
+    # Add storage class (Block).
+    - name: Template Ceph storage file system.
+      template:
+        dest: ./ceph-filesystem.yml
+        src: roles/files/ceph-filesystem.yml
+        mode: "777"
+      become: yes
+      when: install_ceph and ceph_use_shared_fs
+
+    - name: Create Ceph storage file system.
+      command: "kubectl create -f ceph-filesystem.yml"
+      args:
+        creates: "./rook_ceph_setup"
+      when: install_ceph and ceph_use_shared_fs
+
+    - name: Template Ceph storage type (Shared FS).
+      template:
+        dest: ./ceph-storageclass-sfs.yml
+        src: roles/files/ceph-storageclass-sfs.yml
+        mode: "777"
+      become: yes
+      when: install_ceph and ceph_use_shared_fs
+
+    - name: Create Ceph storage type (Shared FS).
+      command: "kubectl create -f ceph-storageclass-sfs.yml"
+      args:
+        creates: "./rook_ceph_setup"
+      when: install_ceph and ceph_use_shared_fs
+
+    - name: Mark Ceph setup.
+      command: "touch ./rook_ceph_setup"
+      args:
+        creates: "./rook_ceph_setup"
+      when: install_ceph
+
+    # NFS setup.
     - name: Create kubernetes pods for all nfs volumes
       command: "helm install --name= --set nfs.server={{ item }} --set nfs.path={{ volume_mount_directory }}/{{ local_pv_directory }} --set storageClass.name=nfs-client-{{ item | replace('.','-') }} stable/nfs-client-provisioner"
       args:
         creates: "./{{ item }}-pv-provisioned"
       loop: "{{ groups['jupyterhub_nodes'] }}"
+      when: install_nfs
 
     - name: Mark pods made
       command: "touch ./{{ item }}-pv-provisioned"
       args:
         creates: "./{{ item }}-pv-provisioned"
       loop: "{{ groups['jupyterhub_nodes'] }}"
-
-    # Note: I dropped --namespace=pgdatabase from this when I gave up on the
-    # postgres db, you can re-add it if the chart is fixed at a later time.
-    - name: Create kubernetes pods for all ephemeral nfs volumes for database
-      command: "helm install --set nfs.server={{ item }} --set nfs.path={{ ephemeral_volume_share_directory }} --set storageClass.name=db-eph-nfs-client-{{ item | replace('.','-') }} stable/nfs-client-provisioner"
-      args:
-        creates: "./eph-db-{{ item }}-pv-provisioned"
-      loop: "{{ groups['jupyterhub_nodes'] }}"
-      when: use_ephemeral_database
-
-    - name: Mark pods made
-      command: "touch ./eph-db-{{ item }}-pv-provisioned"
-      args:
-        creates: "./eph-db-{{ item }}-pv-provisioned"
-      loop: "{{ groups['jupyterhub_nodes'] }}"
-      when: use_ephemeral_database
+      when: install_nfs
 
     - name: Create kubernetes pods for all ephemeral nfs volumes in default namespace
       command: "helm install --set nfs.server={{ item }} --set nfs.path={{ ephemeral_volume_share_directory }} --set storageClass.name=eph-nfs-client-{{ item | replace('.','-') }} stable/nfs-client-provisioner"
       args:
         creates: "./eph-{{ item }}-pv-provisioned"
       loop: "{{ groups['jupyterhub_nodes'] }}"
-      when: ephemeral_persistent_storage
+      when: ephemeral_persistent_storage and install_nfs
 
     - name: Mark pods made
       command: "touch ./eph-{{ item }}-pv-provisioned"
       args:
         creates: "./eph-{{ item }}-pv-provisioned"
       loop: "{{ groups['jupyterhub_nodes'] }}"
-      when: ephemeral_persistent_storage
+      when: ephemeral_persistent_storage and install_nfs
 
 
 - name: Set up JupyterHub on the master node
@@ -827,12 +970,21 @@
         creates: ./config.yml
       register: random_hub_secret
 
-    - name: Add claim info for shared jupyterhub data
+    - name: Add claim info for shared jupyterhub data (NFS)
       template:
         dest: ./jupyter-shared-config.yml
         src: roles/files/jupyter-shared-config.yml
         mode: "777"
       become: yes
+      when: install_nfs
+
+    - name: Add claim info for shared jupyterhub data (Ceph)
+      template:
+        dest: ./jupyter-shared-config.yml
+        src: roles/files/jupyter-shared-config-ceph.yml
+        mode: "777"
+      become: yes
+      when: install_ceph
 
     - name: Create claim.
       command: kubectl apply -f ./jupyter-shared-config.yml

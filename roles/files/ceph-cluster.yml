@@ -1,0 +1,25 @@
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  cephVersion:
+    # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
+    image: {{ ceph_image }}
+    allowUnsupported: false
+  dataDirHostPath: {{ ceph_data_path }}
+  # To understand Rook's upgrade process of Ceph, read https://rook.io/docs/rook/master/ceph-upgrade.html#ceph-version-upgrades
+  skipUpgradeChecks: false
+  # Whether or not continue if PGs are not clean during an upgrade
+  continueUpgradeAfterChecksEvenIfNotHealthy: false
+  mon:
+    count: {{ ceph_replications }}
+    allowMultiplePerNode: false
+  dashboard:
+    enabled: true
+  storage:
+    useAllNodes: true
+    useAllDevices: false
+    directories:
+      - path: {{ ceph_cluster_data }}
