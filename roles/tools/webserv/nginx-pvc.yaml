@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: nginx-shared-space
+spec:
+  # Use ephemeral storage since we don't need the shared drive to live.
+  storageClassName: csi-cephfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 512Mi
+  volumeMode: "Filesystem"

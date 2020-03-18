@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-conf
+data:
+  nginx.conf: |
+    events { }
+    
+    http {
+      server_tokens off;
+      client_max_body_size 32m;
+
+      upstream app_server {
+        server localhost:80;
+        keepalive 128;
+      }
+
+      server {
+        # Running port
+        listen 80;
+
+        # Logging to stdout enables better integration with Docker and GKE/Kubernetes.
+        access_log /dev/stdout;
+
+        root /www/data;
+
+        location / {
+        }
+
+        # 86400 seconds (24 hours) is the maximum a server is allowed.
+        proxy_send_timeout 86400s;
+        proxy_read_timeout 86400s;
+
+        include /var/lib/nginx/extra/*.conf;
+      }
+    }
