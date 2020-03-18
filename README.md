@@ -57,7 +57,23 @@ applied, use `chmod 600 <private key path>`
 8. Add proxy.secretToken (arbitrary token), proxy.https.hosts
   (e.g. `["comp20003-jh.eng.unimelb.edu.au"]`), proxy.https.type (`manual`),
   proxy.https.manual.key (the private key) and proxy.https.manual.cert (the
-  https certificate) to config.yml.
+  https certificate) to config.yml. For this step, you may find https://zero-to-jupyterhub.readthedocs.io/en/latest/administrator/security.html#set-up-manual-https a useful reference. In particular, the reference snippet below.
+  ```yaml
+  proxy:
+    https:
+      hosts:
+        - <your-domain-name>
+      type: manual
+      manual:
+        key: |
+          -----BEGIN RSA PRIVATE KEY-----
+          ...
+          -----END RSA PRIVATE KEY-----
+        cert: |
+          -----BEGIN CERTIFICATE-----
+          ...
+          -----END CERTIFICATE-----
+  ```
 9. Run `helm upgrade --install {{ jupyterhub_name }} jupyterhub/jupyterhub --version={{ jupyterhub_version }} --values ./config.yml`, substituting jupyterhub_name and jupyterhub_version for
   the values in variables/vars.yml
 
