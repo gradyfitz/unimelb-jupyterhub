@@ -30,9 +30,9 @@ hub:
       async def my_pre_spawn_hook(spawner):
         username = spawner.user.name
         if (username in {{ jupyterhub_assignment_admins }}):
-          c.KubeSpawner.image = "{{ jupyter_notebook_image }}:{{ jupyter_admin_notebook_tag }}"
+          spawner.image = "{{ jupyter_notebook_image }}:{{ jupyter_admin_notebook_tag }}"
         else:
-          c.KubeSpawner.image = "{{ jupyter_notebook_image }}:{{ jupyter_notebook_tag }}"
+          spawner.image = "{{ jupyter_notebook_image }}:{{ jupyter_notebook_tag }}"
       c.KubeSpawner.pre_spawn_hook = my_pre_spawn_hook
 singleuser:
   cpu:
