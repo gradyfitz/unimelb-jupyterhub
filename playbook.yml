@@ -737,7 +737,7 @@
       get_url:
         dest: ./helm_install.sh
         mode: "777"
-        url: https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get
+        url: https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get-helm-3
 
     - name: Install Helm
       command: bash ./helm_install.sh
@@ -837,8 +837,20 @@
         creates: "./rook_helm_installed"
       when: install_ceph
 
+    - name: Update helm chart repo.
+      command: "helm repo update"
+      args:
+        creates: "./rook_helm_installed"
+      when: install_ceph
+
+    - name: Create namespace for Rook deployment.
+      command: "kubectl create namespace rook-ceph"
+      args:
+        creates: "./rook_helm_installed"
+      when: install_ceph
+
     - name: Install Rook.
-      command: "helm install --namespace rook-ceph rook-release/rook-ceph"
+      command: "helm install --generate-name --namespace rook-ceph rook-release/rook-ceph"
       args:
         creates: "./rook_helm_installed"
       when: install_ceph
