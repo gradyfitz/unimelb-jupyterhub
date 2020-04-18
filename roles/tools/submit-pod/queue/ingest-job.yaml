@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: submit-process
+spec:
+  parallelism: 2
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      name: submit-process
+    spec:
+      containers:
+      - name: submit-container
+        image: gradyfitz/submit-generic-schedule
+      restartPolicy: OnFailure
+      serviceAccountName: hub

@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: job-ass1-jbjbjeoi
+spec:
+  template:
+    metadata:
+      name: job-ass1-jbjbjeoi
+    spec:
+      containers:
+      - name: ass1-jbjbjeoi-setup
+        image: gradyfitz/comp20003-jupyter-c-kernel
+        volumeMounts:
+        - mountPath: /home/setup
+          name: submit-data
+        - mountPath: /home/verify
+          name: verify-data
+        - mountPath: /home/test
+          name: test-data
+        - mountPath: /home/results
+          name: results-data
+        - mountPath: /home/finalise
+          name: finalise-data
+        - mountPath: /home/submissions
+          name: submissions
+      volume:
+        - name: submit-data
+          PersistentVolumeClaim:
+            claimName: submit-data-jbjbjeoi
+            
+        - name: verify-data
+          PersistentVolumeClaim:
+            claimName: verify-data-jbjbjeoi
+            
+        - name: test-data
+          PersistentVolumeClaim:
+            claimName: test-data-jbjbjeoi
+            
+        - name: results-data
+          PersistentVolumeClaim:
+            claimName: results-data-jbjbjeoi
+            
+        - name: finalise-data
+          PersistentVolumeClaim:
+            claimName: finalise-data-jbjbjeoi
+            
+        - name: submissions
+          PersistentVolumeClaim:
+            claimName: submissions
+        PersistentVolumeClaim:
+          claimName:
+
+      restartPolicy: OnFailure
