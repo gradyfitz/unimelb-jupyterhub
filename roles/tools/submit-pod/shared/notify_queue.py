@@ -13,4 +13,4 @@ def push_to_queue(queue: str, value: str) -> None:
     r = redis.Redis(host="redis")
     r.rpush(queue, value)
 
-push_to_queue(queue=sys.argv[0], value=(" ".join(sys.argv[1:])))
+push_to_queue(queue=sys.argv[1], value=(" ".join(sys.argv[2:])))
