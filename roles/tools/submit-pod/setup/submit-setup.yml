@@ -82,8 +82,6 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: submit-setup-00001
-  labels:
-    app: redis
 spec:
   containers:
     - name: submit-setup
@@ -101,7 +99,7 @@ spec:
         - name: SUBMISSION_EPH_FOLDER
           value: "/home/submission_eph"
         - name: USERNAME
-          value: "gfitzpatrick"
+          value: "assignment"
         - name: ASSIGNMENT_SETUP_FOLDER
           value: "/home/assignment_config"
         - name: SETUP_META_DATA_FOLDER
@@ -127,7 +125,7 @@ spec:
           value: "/home/private_output"
         # The file name relative to the student mount.
         - name: SUBMITTED_FILENAME
-          value: "submissions/ass1/20200329141433_ass1.zip"
+          value: "submissions/ass1/gfitzpatrick/20200329141433_ass1.zip"
         # The signature of the given submitted filename.
         - name: FILE_SIGNATURE
           value: "52067ce8255da653c1ae8ce37adcc2e08626a2b4"
@@ -165,7 +163,7 @@ spec:
       #   privileged request, in which case we need to create a new pvc before
       #   this job is run.
       persistentVolumeClaim:
-        claimName: claim-gfitzpatrick
+        claimName: claim-assignment
     - name: raw-submissions
       # Created before job - persists.
       persistentVolumeClaim:
