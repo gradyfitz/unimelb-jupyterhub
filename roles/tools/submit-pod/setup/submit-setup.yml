@@ -125,10 +125,10 @@ spec:
           value: "/home/private_output"
         # The file name relative to the student mount.
         - name: SUBMITTED_FILENAME
-          value: "submissions/ass1/gfitzpatrick/20200329141433_ass1.zip"
+          value: "submissions/ass1/gfitzpatrick/20200414233857_ass1.zip"
         # The signature of the given submitted filename.
         - name: FILE_SIGNATURE
-          value: "52067ce8255da653c1ae8ce37adcc2e08626a2b4"
+          value: "fa6ebdbad4149aa49c4328d46028f4b5e730b82f"
         # The location of the private signing key.
         - name: PRIVATE_SIGNING_KEY
           value: "/etc/signing/private/ass_rsa.private"

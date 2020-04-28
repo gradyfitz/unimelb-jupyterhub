@@ -54,7 +54,7 @@ then
         if [[ -f "$VERIFICATION_SCRIPT_LOCATION" ]]
         then
             echo "[$(date +'%Y/%m/%d %H:%M:%S')]" "Beginning verification - Using script" > "$VERIFICATION_META_OUTPUT_FILE_TEMP"
-            "$VERIFICATION_SCRIPT_LOCATION" "$SUBMISSION_FOLDER" "$VERIFICATION_OUTPUT_FOLDER" "$USERNAME" "$VERIFICATION_DATA_FOLDER" "$SUBMISSION_FILENAME" >> "$VERIFICATION_META_OUTPUT_FILE_TEMP"
+            "$VERIFICATION_SCRIPT_LOCATION" "$SUBMISSION_FOLDER" "$VERIFICATION_OUTPUT_FOLDER" "$USERNAME" "$VERIFICATION_DATA_FOLDER" "$SUBMITTED_FILENAME" >> "$VERIFICATION_META_OUTPUT_FILE_TEMP"
             VERIFICATION_RESULT=$?
         else
             echo "[$(date +'%Y/%m/%d %H:%M:%S')]" "No server-side verification script present, verification step passed by default." > "$VERIFICATION_META_OUTPUT_FILE_TEMP"

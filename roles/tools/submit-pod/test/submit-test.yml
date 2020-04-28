@@ -2,11 +2,11 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: submit-verify-00001
+  name: submit-test-00001
 spec:
   containers:
-    - name: submit-verify
-      image: gradyfitz/submit-verify
+    - name: submit-test
+      image: gradyfitz/submit-test
       #command: [ "/bin/bash", "-c", "while [[ 0 ]]; do sleep 1000; done" ]
       env:
         - name: JOB_ID
@@ -24,10 +24,12 @@ spec:
           value: "assignment"
         #- name: ASSIGNMENT_SETUP_FOLDER
           #value: "/home/assignment_config"
-        - name: SETUP_META_DATA_FOLDER
-          value: "/home/setup_config_eph"
+        #- name: SETUP_META_DATA_FOLDER
+          #value: "/home/setup_config_eph"
         - name: VERIFICATION_OUTPUT_FOLDER
           value: "/home/verify_eph"
+        - name: TESTING_OUTPUT_FOLDER
+          value: "/home/test_eph"
         # Arbitrary - Should match results and finalise values.
         #- name: SETUP_META_DATA_NAME
           #value: "setup.log"
@@ -35,15 +37,18 @@ spec:
         #- name: SETUP_CONFIG_FILE_NAME
           #value: "setup.txt"
         # Arbitrary - Should match verify script value.
-        - name: SETUP_RESULT_FILE
-          value: "__setup_result.txt"
+        #- name: SETUP_RESULT_FILE
+          #value: "__setup_result.txt"
         - name: VERIFICATION_DATA_FOLDER
           value: "/home/verify_eph"
         # Arbitrary - Should match test script value.
         - name: VERIFICATION_DATA_OUTPUT_NAME
           value: "__verify_result.txt"
-        #- name: TESTING_DATA_FOLDER
-          #value: "/home/test_eph"
+        - name: TESTING_DATA_FOLDER
+          value: "/home/test_eph"
+        # Arbitrary - Should match results script value.
+        - name: TESTING_DATA_OUTPUT_NAME
+          value: "__test_result.txt"
         #- name: RESULTS_DATA_FOLDER
           #value: "/home/results_eph"
         #- name: FINALISE_DATA_FOLDER
@@ -68,12 +73,12 @@ spec:
           mountPath: /home/submission_eph
         #- name: assignment-config
           #mountPath: /home/assignment_config
-        - name: setup-config-eph
-          mountPath: /home/setup_config_eph
+        #- name: setup-config-eph
+        #  mountPath: /home/setup_config_eph
         - name: verify-eph
           mountPath: /home/verify_eph
-        #- name: test-eph
-          #mountPath: /home/test_eph
+        - name: test-eph
+          mountPath: /home/test_eph
         #- name: results-eph
           #mountPath: /home/results_eph
         #- name: finalise-eph
@@ -103,18 +108,18 @@ spec:
       # Created with job - ephemeral for life of job.
       persistentVolumeClaim:
         claimName: submission-eph-00001
-    - name: setup-config-eph
+    #- name: setup-config-eph
       # Created with job - ephemeral for life of job.
-      persistentVolumeClaim:
-        claimName: setup-config-eph-00001
+      #persistentVolumeClaim:
+        #claimName: setup-config-eph-00001
     - name: verify-eph
       # Created with job - ephemeral for life of job.
       persistentVolumeClaim:
         claimName: verify-eph-00001
-    #- name: test-eph
-    #  # Created with job - ephemeral for life of job.
-    #  persistentVolumeClaim:
-    #    claimName: test-eph-00001
+    - name: test-eph
+      # Created with job - ephemeral for life of job.
+      persistentVolumeClaim:
+        claimName: test-eph-00001
     #- name: results-eph
     #  # Created with job - ephemeral for life of job.
     #  persistentVolumeClaim:
