@@ -9,5 +9,6 @@ ENV SUBMIT_QUEUE_NAME=$SUBMIT_QUEUE_NAME
 RUN pip install redis kubernetes
 COPY ./worker.py /worker.py
 COPY ./rediswq.py /rediswq.py
+COPY ./handle_request.py /handle_request.py
 
 CMD  python worker.py
