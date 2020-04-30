@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: submit-private-results
+spec:
+  # Use ephemeral storage since we don't need the shared drive to live.
+  storageClassName: csi-cephfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi
+  volumeMode: Filesystem

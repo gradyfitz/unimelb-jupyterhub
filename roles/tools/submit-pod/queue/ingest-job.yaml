@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: submit-process
+spec:
+  parallelism: 1
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      name: submit-process
+    spec:
+      containers:
+      - name: submit-container
+        image: gradyfitz/submit-generic-schedule
+        env:
+          - name: ASSIGNMENT_CONFIG_FOLDER
+            value: "/home/assignment_config"
+          - name: INITIAL_JOB_NUMBER
+            value: "7"
+        volumeMounts:
+          - name: assignment-config
+            mountPath: /home/assignment_config
+      volumes:
+        - name: assignment-config
+          persistentVolumeClaim:
+            claimName: submit-assignment-config
+      restartPolicy: OnFailure
+      serviceAccountName: hub

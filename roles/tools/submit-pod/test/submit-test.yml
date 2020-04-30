@@ -1,0 +1,141 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: submit-test-00001
+spec:
+  containers:
+    - name: submit-test
+      image: gradyfitz/submit-test
+      #command: [ "/bin/bash", "-c", "while [[ 0 ]]; do sleep 1000; done" ]
+      env:
+        - name: JOB_ID
+          value: "00001"
+        - name: ASSIGNMENT_NAME
+          value: "ass1"
+        #- name: RAW_SUBMISSIONS_FOLDER
+          #value: "/home/raw_submissions"
+        #- name: SUBMISSION_FOLDER
+          #value: "/home/student_mount"
+        # NOTE: This varies from the setup script.
+        - name: SUBMISSION_FOLDER
+          value: "/home/submission_eph"
+        - name: USERNAME
+          value: "assignment"
+        #- name: ASSIGNMENT_SETUP_FOLDER
+          #value: "/home/assignment_config"
+        #- name: SETUP_META_DATA_FOLDER
+          #value: "/home/setup_config_eph"
+        - name: VERIFICATION_OUTPUT_FOLDER
+          value: "/home/verify_eph"
+        - name: TESTING_OUTPUT_FOLDER
+          value: "/home/test_eph"
+        # Arbitrary - Should match results and finalise values.
+        #- name: SETUP_META_DATA_NAME
+          #value: "setup.log"
+        # Needs to match configuration value given by user.
+        #- name: SETUP_CONFIG_FILE_NAME
+          #value: "setup.txt"
+        # Arbitrary - Should match verify script value.
+        #- name: SETUP_RESULT_FILE
+          #value: "__setup_result.txt"
+        - name: VERIFICATION_DATA_FOLDER
+          value: "/home/verify_eph"
+        # Arbitrary - Should match test script value.
+        - name: VERIFICATION_DATA_OUTPUT_NAME
+          value: "__verify_result.txt"
+        - name: TESTING_DATA_FOLDER
+          value: "/home/test_eph"
+        # Arbitrary - Should match results script value.
+        - name: TESTING_DATA_OUTPUT_NAME
+          value: "__test_result.txt"
+        #- name: RESULTS_DATA_FOLDER
+          #value: "/home/results_eph"
+        #- name: FINALISE_DATA_FOLDER
+          #value: "/home/finalise_eph"
+        #- name: STUDENT_PRIVATE_OUTPUT_FOLDER
+          #value: "/home/private_output"
+        # The file name relative to the student mount.
+        - name: SUBMITTED_FILENAME
+          value: "submissions/ass1/gfitzpatrick/20200428232501_ass1.zip"
+        # The signature of the given submitted filename.
+        - name: FILE_SIGNATURE
+          value: "7af7d0f1b7f406c5efd1749bff7bec0e665d8267"
+        # The location of the private signing key.
+        #- name: PRIVATE_SIGNING_KEY
+          #value: "/etc/signing/private/ass_rsa.private"
+      volumeMounts:
+        #- name: raw-submissions
+          #mountPath: /home/raw_submissions
+        #- name: student-claim
+          #mountPath: /home/student_mount
+        - name: submission-eph
+          mountPath: /home/submission_eph
+        #- name: assignment-config
+          #mountPath: /home/assignment_config
+        #- name: setup-config-eph
+        #  mountPath: /home/setup_config_eph
+        - name: verify-eph
+          mountPath: /home/verify_eph
+        - name: test-eph
+          mountPath: /home/test_eph
+        #- name: results-eph
+          #mountPath: /home/results_eph
+        #- name: finalise-eph
+          #mountPath: /home/finalise_eph
+        #- name: private-results
+          #mountPath: /home/private_output
+        #- name: private-rsa-key
+          #mountPath: /etc/signing/private
+        #- name: public-rsa-key
+          #mountPath: /etc/signing/public
+  volumes:
+    #- name: student-claim
+      # Created before job - Unless student hasn't logged in and this is a
+      #   privileged request, in which case we need to create a new pvc before
+      #   this job is run.
+      #persistentVolumeClaim:
+        #claimName: claim-assignment
+    #- name: raw-submissions
+      # Created before job - persists.
+      #persistentVolumeClaim:
+        #claimName: submit-raw-submissions
+    #- name: assignment-config
+      # Created before job - persists.
+      #persistentVolumeClaim:
+        #claimName: submit-assignment-config
+    - name: submission-eph
+      # Created with job - ephemeral for life of job.
+      persistentVolumeClaim:
+        claimName: submission-eph-00001
+    #- name: setup-config-eph
+      # Created with job - ephemeral for life of job.
+      #persistentVolumeClaim:
+        #claimName: setup-config-eph-00001
+    - name: verify-eph
+      # Created with job - ephemeral for life of job.
+      persistentVolumeClaim:
+        claimName: verify-eph-00001
+    - name: test-eph
+      # Created with job - ephemeral for life of job.
+      persistentVolumeClaim:
+        claimName: test-eph-00001
+    #- name: results-eph
+    #  # Created with job - ephemeral for life of job.
+    #  persistentVolumeClaim:
+    #    claimName: results-eph-00001
+    #- name: finalise-eph
+    #  # Created with job - ephemeral for life of job.
+    #  persistentVolumeClaim:
+    #    claimName: finalise-eph-00001
+    #- name: private-results
+    #  # Created before job - persists.
+    #  persistentVolumeClaim:
+    #    claimName: submit-private-results
+    #- name: private-rsa-key
+    #  secret:
+    #    secretName: ass-rsa-private
+    #- name: public-rsa-key
+    #  secret:
+    #    secretName: ass-rsa-public
+  restartPolicy: Never

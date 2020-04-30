@@ -1,0 +1,16 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: claim-assignment
+spec:
+  # This claim is shared among instructors and can be used to submit on behalf
+  # of other users without submitting under a single pod. This works around the
+  # oversight that initially pvcs for students were created with the
+  # ReadWriteOnce access mode.
+  storageClassName: csi-cephfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 4Gi
+  volumeMode: Filesystem
