@@ -224,11 +224,11 @@ FINALISE_VM = [
 {"name": "private-results", "mountPath": "/home/private_output"}
 ]
 
-def get_setup_volumes(job_id: str = None):
+def get_setup_volumes(job_id: str = None, username: str = None):
     SETUP_VOLUMES = [
     {"name": "student-claim",
     "persistentVolumeClaim": {
-    "claimName": "claim-assignment"}},
+    "claimName": "claim-{}".format(username)}},
     {"name": "raw-submissions",
     "persistentVolumeClaim": {
     "claimName": "submit-raw-submissions"}},
@@ -265,7 +265,7 @@ def get_setup_volumes(job_id: str = None):
     ]
     return SETUP_VOLUMES
 
-def get_verify_volumes(job_id: str = None):
+def get_verify_volumes(job_id: str = None, username: str = None):
     VERIFY_VOLUMES = [
  {"name": "submission-eph",
   "persistentVolumeClaim": {
@@ -279,7 +279,7 @@ def get_verify_volumes(job_id: str = None):
     ]
     return VERIFY_VOLUMES
 
-def get_test_volumes(job_id: str = None):
+def get_test_volumes(job_id: str = None, username: str = None):
     TEST_VOLUMES = [
     {"name": "submission-eph",
   "persistentVolumeClaim":
@@ -293,11 +293,11 @@ def get_test_volumes(job_id: str = None):
     ]
     return TEST_VOLUMES
 
-def get_results_volumes(job_id: str = None):
+def get_results_volumes(job_id: str = None, username: str = None):
     RESULTS_VOLUMES = [
     {"name": "student-claim",
   "persistentVolumeClaim":
-    {"claimName": "claim-assignment"}},
+    {"claimName": "claim-{}".format(username)}},
 {"name": "submission-eph",
   "persistentVolumeClaim":
     {"claimName": "submission-eph-{}".format(job_id)}},
@@ -319,11 +319,11 @@ def get_results_volumes(job_id: str = None):
     ]
     return RESULTS_VOLUMES
 
-def get_finalise_volumes(job_id: str = None):
+def get_finalise_volumes(job_id: str = None, username: str = None):
     FINALISE_VOLUMES = [
     {"name": "student-claim",
   "persistentVolumeClaim":
-    {"claimName": "claim-assignment"}},
+    {"claimName": "claim-{}".format(username)}},
 {"name": "assignment-config",
   "persistentVolumeClaim":
     {"claimName": "submit-assignment-config"}},
@@ -354,13 +354,18 @@ def get_finalise_volumes(job_id: str = None):
 def create_job(job_id: str = None, submit_mode: str = None, username: str = None, assignment: str = None, zip_hash: str = None, submit_path: str = None, core_v1=None):
 
     create_volumes(job_id=job_id, core_v1=core_v1)
-    create_pod(name_short="submit-setup", name_long="submit-setup-{}".format(job_id), image="gradyfitz/submit-setup", env=get_setup_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=SETUP_VM, volumes=get_setup_volumes(job_id=job_id), core_v1=core_v1)
-    create_pod(name_short="submit-verify", name_long="submit-verify-{}".format(job_id), image="gradyfitz/submit-verify", env=get_verify_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=VERIFY_VM, volumes=get_verify_volumes(job_id=job_id), core_v1=core_v1)
-    create_pod(name_short="submit-test", name_long="submit-test-{}".format(job_id), image="gradyfitz/submit-test", env=get_test_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=TEST_VM, volumes=get_test_volumes(job_id=job_id), core_v1=core_v1)
-    create_pod(name_short="submit-results", name_long="submit-results-{}".format(job_id), image="gradyfitz/submit-results", env=get_results_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=RESULTS_VM, volumes=get_results_volumes(job_id=job_id), core_v1=core_v1)
-    create_pod(name_short="submit-finalise", name_long="submit-finalise-{}".format(job_id), image="gradyfitz/submit-finalise", env=get_finalise_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=FINALISE_VM, volumes=get_finalise_volumes(job_id=job_id), core_v1=core_v1)
+    create_pod(name_short="submit-setup", name_long="submit-setup-{}".format(job_id), image="gradyfitz/submit-setup", env=get_setup_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=SETUP_VM, volumes=get_setup_volumes(job_id=job_id, username=username), core_v1=core_v1)
+    create_pod(name_short="submit-verify", name_long="submit-verify-{}".format(job_id), image="gradyfitz/submit-verify", env=get_verify_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=VERIFY_VM, volumes=get_verify_volumes(job_id=job_id, username=username), core_v1=core_v1)
+    create_pod(name_short="submit-test", name_long="submit-test-{}".format(job_id), image="gradyfitz/submit-test", env=get_test_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=TEST_VM, volumes=get_test_volumes(job_id=job_id, username=username), core_v1=core_v1)
+    create_pod(name_short="submit-results", name_long="submit-results-{}".format(job_id), image="gradyfitz/submit-results", env=get_results_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=RESULTS_VM, volumes=get_results_volumes(job_id=job_id, username=username), core_v1=core_v1)
+    create_pod(name_short="submit-finalise", name_long="submit-finalise-{}".format(job_id), image="gradyfitz/submit-finalise", env=get_finalise_env(job_id=job_id, submitted_filename=submit_path, file_sig=zip_hash, assignment=assignment, username=username), volume_mounts=FINALISE_VM, volumes=get_finalise_volumes(job_id=job_id, username=username), core_v1=core_v1)
 
-
+def pvc_exists(claim: str = None, core_v1 = None):
+    res = core_v1.list_namespaced_persistent_volume_claim(namespace='default', field_selector='metadata.name={}'.format(claim))
+    if len(res.items) > 0:
+        return True
+    else:
+        return False
 
 
 config.load_incluster_config()
@@ -393,6 +398,11 @@ if not submit_mode == "submit":
 assignment_exists = os.popen('/bin/bash -c "if [[ -d {}/{} ]]; then printf True; else printf False; fi"'.format(os.getenv("ASSIGNMENT_CONFIG_FOLDER"), assignment)).read()
 if assignment_exists == "False":
     print("Assignment {} not found.".format(assignment))
+    exit(1)
+
+# Check the student claim exists.
+if not pvc_exists(claim="claim-{}".format(username), core_v1=core_v1):
+    print("User {}'s claim not found, ignoring submission.".format(username))
     exit(1)
 
 create_job(job_id=job_id, submit_mode=submit_mode, username=username, assignment=assignment, zip_hash=zip_hash, submit_path=submit_path, core_v1=core_v1)

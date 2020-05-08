@@ -7,6 +7,14 @@ import time, datetime
 import hashlib
 import math
 import redis
+import glob
+
+def relative_path(base_folder: str, full_path: str) -> str:
+    """
+    This takes the name of the base folder and a file inside it and returns the
+    relative path of the file inside that folder.
+    """
+    return os.popen("realpath --relative-to=\"{}\" \"{}\"".format(base_folder, full_path)).read().splitlines()[0]
 
 def file_list(folder: str) -> List[Dict[str, str]]:
     """
@@ -24,6 +32,7 @@ def file_list(folder: str) -> List[Dict[str, str]]:
         m_time = os.path.getmtime(full_path)
         new_dict['filename'] = file
         new_dict['path'] = full_path
+        new_dict['relative_path'] = relative_path(folder, full_path)
         new_dict['modified_s'] = m_time
         new_dict['timestamp'] = time.ctime(m_time)
         timestamp = datetime.datetime.fromtimestamp(m_time)
@@ -112,7 +121,7 @@ def monitor_queue(queue=None, complete_stage=None, monitor_file=None, submission
                     return True
                 else:
                     words = item.decode("utf-8").split()
-                    return words[2] == "true"
+                    return words[2] == "pass"
     
 
 def finalise(message: str, complete_stage: str, submission_name: str) -> bool:
@@ -142,3 +151,13 @@ def finalise(message: str, complete_stage: str, submission_name: str) -> bool:
                 if " ".join(words[3:]) == submission_name:
                     return True
     return False
+
+def latest_matching_glob(glob_str: str) -> str:
+    files = []
+    for file in glob.glob(glob_str):
+        mod_time = os.stat(file).st_mtime
+        files.append({'name': file, 'm_time': mod_time})
+    files.sort(key=lambda x: x['m_time'], reverse=True)
+    # This could throw an exception if no log files are present.
+    return files[0]['name']
+    
