@@ -367,6 +367,15 @@ def pvc_exists(claim: str = None, core_v1 = None):
     else:
         return False
 
+def patch_pvc_read_many(claim_name=None, core_v1=None):
+    # A patch operation.
+    pv_operation = {"op": "replace", "path": "/spec/accessModes[0]", "value": "ReadWriteMany"}
+    # Get pvc
+    pvc = core_v1.list_namespaced_persistent_volume_claim(namespace='default', field_selector='metadata.name={}'.format(claim_name))
+    if len(pvc.items) > 0:
+        # Get pv
+        pv_name = pvc.items[0].spec.volume_name
+        res = core_v1.patch_persistent_volume(name=pv_name, body=pv_operation)
 
 config.load_incluster_config()
 
@@ -405,4 +414,6 @@ if not pvc_exists(claim="claim-{}".format(username), core_v1=core_v1):
     print("User {}'s claim not found, ignoring submission.".format(username))
     exit(1)
 
+# Patch pv fulfilling pvc to make sure it can be mounted as soon as possible.
+patch_pvc_read_many(claim_name="claim-{}".format(username), core_v1=core_v1)
 create_job(job_id=job_id, submit_mode=submit_mode, username=username, assignment=assignment, zip_hash=zip_hash, submit_path=submit_path, core_v1=core_v1)

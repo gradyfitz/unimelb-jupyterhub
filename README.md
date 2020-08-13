@@ -103,6 +103,24 @@ version clear, generally the differences should only occur in the provisioning
 stage, the actual cluster setup shouldn't be affected very much. Full details of
 available ansible modules can be found here: https://docs.ansible.com/ansible/latest/modules/list_of_cloud_modules.html
 
+## Additional Guides
+---
+Additional guides explaining deployment of extensions which can be added are
+available in doc/, these are various processes that highlight how certain
+actions are carried out on the JupyterHub system, how to interact with the
+system and how to build simple extensions to communicate with the kubernetes
+ecosystem.
+
+- Basic JupyterHub interaction - doc/01_jupyterhub_api.md
+- User Archive Processes - doc/02_archive.md
+- Modifying the JupyterHub config.yml - doc/03_jh_config.md [TODO]
+- Adding Shared Secrets - doc/04_shared_secrets.md [TODO]
+- Adding Isolated Run and Test Server - doc/05_submit.md
+- Adding Leaderboards - doc/06_leaderboard.md [TODO]
+- Scaling - Disk - doc/07_extending_disk.md
+- Scaling - Compute - doc/08_extending_compute.md [TODO]
+- Writing Tools For Kubernetes - doc/09_tools_for_kubernetes.md
+
 ## Troubleshooting
 ---
 ### A student created a file too big

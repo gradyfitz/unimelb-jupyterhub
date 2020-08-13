@@ -1,0 +1,39 @@
+# This is the updates you need to add to the hub permissions.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  # "namespace" omitted since ClusterRoles are not namespaced
+  name: hub-cluster
+rules:
+- apiGroups:
+  - ""
+  #
+  # at the HTTP level, the name of the resource for accessing Secret
+  # objects is "secrets"
+  resources:
+    - "persistentvolumes"
+  verbs:
+    - "get"
+    - "watch"
+    - "list"
+    - "create"
+    - "delete"
+    - "patch"
+    - "update"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+# This cluster role binding allows anyone in the "manager" group to read secrets in any namespace.
+kind: ClusterRoleBinding
+metadata:
+  name: hub-cluster-rolebinding
+subjects:
+- kind: ServiceAccount
+  # If you want to split this out into a separate account, that's also very
+  # possible.
+  name: hub # Name is case sensitive
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: hub-cluster
+  apiGroup: rbac.authorization.k8s.io
+

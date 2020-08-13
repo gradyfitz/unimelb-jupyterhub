@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: archive-claim
+spec:
+  # Use ephemeral storage since we don't need the shared drive to live.
+  storageClassName: csi-cephfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 60Gi
+  volumeMode: "Filesystem"

@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: daemon-backup
+spec:
+  parallelism: 1
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      name: daemon-backup
+    spec:
+      containers:
+      - name: backup-container
+        image: gradyfitz/daemon-backup
+        env:
+          - name: INITIAL_JOB_NUMBER
+            value: "1"
+          # The location of the private signing key. We keep both the private
+          # and public keys hidden from average users, so we could use symmetric
+          # encryption here.
+          - name: PRIVATE_SIGNING_KEY
+            value: "/etc/signing/private/ass_rsa.private"
+          - name: PUBLIC_SIGNING_KEY
+            value: "/etc/signing/public/ass_rsa.public"
+          - name: BACKUP_CLAIM_NAME
+            value: "archive-claim"
+          - name: BACKUP_CLAIM_LOCATION
+            value: "/home/backup"
+          - name: USER_CLAIM_LOCATION
+            value: "/home/user"
+          - name: ARCHIVE_IMAGE
+            value: "gradyfitz/archiver"
+        volumeMounts:
+          - name: private-rsa-key
+            mountPath: /etc/signing/private
+          - name: public-rsa-key
+            mountPath: /etc/signing/public
+      volumes:
+        - name: private-rsa-key
+          secret:
+            secretName: ass-rsa-private
+        - name: public-rsa-key
+          secret:
+            secretName: ass-rsa-public
+      restartPolicy: OnFailure
+      serviceAccountName: hub
