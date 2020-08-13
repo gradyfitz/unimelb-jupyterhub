@@ -45,7 +45,6 @@ Persistent Volumes.
 ### Creating Cluster Roles
 Following the instructions in roles/tools/permissions/README.md will add the
 permissions.
-############ TODO - Add this to setup steps in submit & archive. ###############
 
 ## General Interaction with Kubernetes
 Beyond the JupyterHub extensions, it is possible to interact with the kubernetes

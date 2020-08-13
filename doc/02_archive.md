@@ -27,8 +27,8 @@ Backing up a more decentralised system is best done with the assistance of that
 system, so here we employ a five-step backup process.
 
 1. Create a persistent volume claim (if not yet present). An example of this is
-  in roles/tools/archive/archive-pvc.yaml, which can be launched by uploading
-  the file to the Kubernetes command node and running
+  in roles/tools/archive/queue/archive-pvc.yaml, which can be launched by
+  uploading the file to the Kubernetes command node and running
   `kubectl create -f archive-pvc.yaml`.
 2. Add this persistent volume claim to the JupyterHub admin users' attached
   volumes (see doc/03_jh_config.md).
@@ -36,11 +36,13 @@ system, so here we employ a five-step backup process.
   on the 'backup-service' pipe and backs up that user's files to the pvc from
   step 2, an example can be launched by similar process to step 1, this time
   running `kubectl create -f archive-daemon.yaml` after uploading
-  roles/tools/archive/archive-daemon.yaml.
+  roles/tools/archive/queue/archive-daemon.yaml.
 4. Send commands to backup all users (see doc/01_jupyterhub_api.md) encrypted
   with a private key.
 5. Once completed, an admin can run the tar command on the attached storage from
   JupyterLab and download the file from there in much the same way.
+
+The deployment is also focused on in roles/tools/archive/README.md
 
 ## User Selection
 See doc/01_jupyterhub_api, get all users and filter by username. Store this list

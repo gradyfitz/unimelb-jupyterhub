@@ -11,11 +11,14 @@ The system uses the simple Redis queue set up above and uses the pipe submit to
 launch jobs which process the provided submission.
 
 ## How to set up
-1. Copy the redis-pod.yaml, redis-service.yaml & ingest-job.yaml files to the
-  server.
+1. Copy the queue/redis-pod.yaml, queue/redis-service.yaml,
+  queue/ingest-job.yaml and reaper/reaper-job.yaml files to the server.
 2. Run `kubectl create -f redis-pod.yaml`
 3. Run `kubectl create -f redis-service.yaml`
 4. Run `kubectl create -f ingest-job.yaml`
+5. Run `kubectl create -f reaper-job.yaml`
+6. If it hasn't been applied before, apply the permissions in
+  roles/tools/permissions/README.md
 
 ## Default Setup Scheme
 The way I've aimed to set up the system is simple.
