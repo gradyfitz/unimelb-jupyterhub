@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: leaderboard
+spec:
+  parallelism: 1
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      name: leaderboard
+    spec:
+      containers:
+        - name: backup-container
+          image: joshnguyen/jupyterhub-leaderboard
+          env:
+            - name: INITIAL_JOB_NUMBER
+              value: "1"
+            # The location of the private signing key. We keep both the private
+            # and public keys hidden from average users, so we could use symmetric
+            # encryption here.
+            - name: PRIVATE_SIGNING_KEY
+              value: "/etc/signing/private/ass_rsa.private"
+            - name: PUBLIC_SIGNING_KEY
+              value: "/etc/signing/public/ass_rsa.public"
+            - name: ASSIGNMENT_SETUP_FOLDER
+              value: "/home/assignment_config"
+            - name: JUPYTER_SHARED_PV
+              value: "/home/shared"
+            - name: LEADERBOARD_QUEUE_NAME
+              value: "leaderboard"
+            - name: LEADERBOARD_TIMEOUT
+              value: "600"
+            - name: WEB_VOLUME_PATH
+              value: "/home/web"
+            - name: LEADERBOARD_RESULTS_FOLDER
+              value: "/home/results"
+            - name: UPDATE_PERIOD
+              value: "3600"
+          volumeMounts:
+            - name: private-rsa-key
+              mountPath: /etc/signing/private
+            - name: public-rsa-key
+              mountPath: /etc/signing/public
+            - name: assignment-config
+              mountPath: /home/assignment_config
+            - name: jupyterhub-shared-pv
+              mountPath: /home/shared
+            - name: nginx-shared-space
+              mountPath: /home/web
+            - name: submit-private-results
+              mountPath: /home/results
+      volumes:
+        - name: private-rsa-key
+          secret:
+            secretName: ass-rsa-private
+        - name: public-rsa-key
+          secret:
+            secretName: ass-rsa-public
+        - name: assignment-config
+          # Created before job - persists.
+          persistentVolumeClaim:
+            claimName: submit-assignment-config
+        - name: jupyterhub-shared-pv
+          persistentVolumeClaim:
+            claimName: jupyterhub-shared-pv
+        - name: nginx-shared-space
+          persistentVolumeClaim:
+            claimName: nginx-shared-space
+        - name: submit-private-results
+          persistentVolumeClaim:
+            claimName: submit-private-results
+      restartPolicy: OnFailure
+      serviceAccountName: hub
