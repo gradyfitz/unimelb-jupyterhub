@@ -26,11 +26,11 @@ def launch_backup_job(name_long=None, user=None, job_id=None, core_v1=None):
     volumes = [{
         "name": "user",
         "persistentVolumeClaim":
-            {"claimName": backup_location}
+            {"claimName": "claim-{}".format(user)}
     }, {
         "name": "backup",
         "persistentVolumeClaim":
-            {"claimName": "claim-{}".format(user)}
+            {"claimName": backup_location}
     }, {
         "name": "public-rsa-key",
         "secret": {
@@ -83,8 +83,13 @@ def launch_backup_job(name_long=None, user=None, job_id=None, core_v1=None):
     print(core_v1.create_namespaced_pod(namespace='default', body=pod_body))
 
 def read_write_many(claim_name=None, core_v1=None):
+    """
+    To mount a persistent volume claim to multiple pods, we need it to be
+    ReadWriteMany, you can't change the PVC, but you can change the persistent
+    volume underlying it. This is what we do here.
+    """
     # A patch operation.
-    pv_operation = {"op": "replace", "path": "/spec/accessModes[0]", "value": "ReadWriteMany"}
+    pv_operation = {"op": "replace", "path": "/spec/accessModes/0/", "value": "ReadWriteMany"}
     # Get pvc
     pvc = core_v1.list_namespaced_persistent_volume_claim(namespace='default', field_selector='metadata.name={}'.format(claim_name))
     if len(pvc.items) > 0:
@@ -103,13 +108,14 @@ def cleanup_job(job_id: str = None, user: str = None, core_v1=None):
     cleanup_pod(name_long="backup-{}-{}".format(job_id, user), core_v1=core_v1)
 
 def backup_job(job_id: str = None, user: str = None, core_v1=None):
-    # Step 1. Launch Job to copy from user jupyter claim to destination.
+    # Step 1. Ensure the claim is ReadWriteMany.
+    read_write_many(claim_name="claim-{}".format(user), core_v1=core_v1)
+    # Step 2. Launch Job to copy from user jupyter claim to destination.
     launch_backup_job(name_long="backup-{}-{}".format(job_id, user),
                       user=user,
                       job_id=job_id,
                       core_v1=core_v1)
-    # Step 2. Ensure the claim is ReadWriteMany.
-    read_write_many(claim_name="claim-{}".format(user), core_v1=core_v1)
+
 
 def encode(payload: Dict[Any, Any]):
     # payload = {
