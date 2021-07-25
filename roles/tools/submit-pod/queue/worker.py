@@ -20,14 +20,14 @@ while True:
   if item is not None:
     itemstr = item.decode("utf-8")
     print("Working on " + itemstr)
-    time.sleep(10) # Put your actual work here instead of sleep.
+    time.sleep(int(os.getenv("LAUNCH_DELAY", "10"))) # Put your actual work here instead of sleep.
     print(os.popen('python /handle_request.py {:05d} {} > last_job.txt'.format(job_number, itemstr)).read(), file=sys.stderr)
     job_number = job_number + 1
     q.complete(item)
-    time.sleep(45)
+    time.sleep(int(os.getenv("AFTER_JOB_WAIT", "45")))
   else:
     print("Waiting for work")
   while q.empty():
     # Sleep while we wait for work.
-    time.sleep(30)
+    time.sleep(int(os.getenv("IDLE_WAIT", "30")))
 print("Queue empty, exiting")

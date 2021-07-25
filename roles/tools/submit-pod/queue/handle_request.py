@@ -34,12 +34,12 @@ def get_volume_body(name: str = None, storage: str = None):
 
 def create_volumes(job_id: str = None, core_v1=None):
 
-    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="submission-eph-{}".format(job_id), storage="64Mi")))
-    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="setup-config-eph-{}".format(job_id), storage="64Mi")))
-    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="verify-eph-{}".format(job_id), storage="128Mi")))
-    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="test-eph-{}".format(job_id), storage="128Mi")))
-    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="results-eph-{}".format(job_id), storage="128Mi")))
-    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="finalise-eph-{}".format(job_id), storage="128Mi")))
+    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="submission-eph-{}".format(job_id), storage=os.getenv("SUBMISSION_PVC_STORAGE","64Mi"))))
+    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="setup-config-eph-{}".format(job_id), storage=os.getenv("SETUP_CONFIG_PVC_STORAGE","64Mi"))))
+    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="verify-eph-{}".format(job_id), storage=os.getenv("VERIFY_PVC_STORAGE","128Mi"))))
+    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="test-eph-{}".format(job_id), storage=os.getenv("TEST_PVC_STORAGE","128Mi"))))
+    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="results-eph-{}".format(job_id), storage=os.getenv("RESULTS_PVC_STORAGE","128Mi"))))
+    print(core_v1.create_namespaced_persistent_volume_claim(namespace='default', body=get_volume_body(name="finalise-eph-{}".format(job_id), storage=os.getenv("FINALISE_PVC_STORAGE","128Mi"))))
 
 def create_pod(name_short=None, name_long=None, image=None, env=None, volume_mounts=None, volumes=None, core_v1=None):
     pod_body = {
@@ -369,7 +369,7 @@ def pvc_exists(claim: str = None, core_v1 = None):
 
 def patch_pvc_read_many(claim_name=None, core_v1=None):
     # A patch operation.
-    pv_operation = {"op": "replace", "path": "/spec/accessModes[0]", "value": "ReadWriteMany"}
+    pv_operation = [{"op": "replace", "path": "/spec/accessModes/0", "value": "ReadWriteMany"}]
     # Get pvc
     pvc = core_v1.list_namespaced_persistent_volume_claim(namespace='default', field_selector='metadata.name={}'.format(claim_name))
     if len(pvc.items) > 0:

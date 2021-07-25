@@ -22,7 +22,7 @@ USE_USERNAME_ONLY = True
 OUTPUT_AS_USER_NAME = True
 
 user_folder = user_loc
-list_of_files = [file for file in submitutils.file_list(user_folder) if '.git' not in file['path']]
+list_of_files = [file for file in submitutils.file_list(user_folder, recursive=True) if '.git' not in file['path']]
 
 list_of_files.sort(key=lambda x: x['modified_s'], reverse=True)
 list_of_filenames = [(file['filename'], file['timestamp'], file['raw_filesize']) for file in list_of_files]

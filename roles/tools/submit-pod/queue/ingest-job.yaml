@@ -15,8 +15,30 @@ spec:
         env:
           - name: ASSIGNMENT_CONFIG_FOLDER
             value: "/home/assignment_config"
+          - name: SUBMISSION_PVC_STORAGE
+            value: "1Gi"
+          - name: SETUP_CONFIG_PVC_STORAGE
+            value: "1Gi"
+          - name: VERIFY_PVC_STORAGE
+            value: "1Gi"
+          - name: TEST_PVC_STORAGE
+            value: "1Gi"
+          - name: RESULTS_PVC_STORAGE
+            value: "1Gi"
+          - name: FINALISE_PVC_STORAGE
+            value: "1Gi"
+          # How long the daemon should wait before actually launching each job.
+          - name: LAUNCH_DELAY
+            value: "10"
+          # How long the daemon should wait after a job before checking for the
+          #  next one.
+          - name: AFTER_JOB_WAIT
+            value: "45"
+          # How long the daemon should sleep if no jobs are available.
+          - name: IDLE_WAIT
+            value: "30"
           - name: INITIAL_JOB_NUMBER
-            value: "7"
+            value: "1"
         volumeMounts:
           - name: assignment-config
             mountPath: /home/assignment_config

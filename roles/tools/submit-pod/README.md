@@ -12,13 +12,24 @@ launch jobs which process the provided submission.
 
 ## How to set up
 1. Copy the queue/redis-pod.yaml, queue/redis-service.yaml,
-  queue/ingest-job.yaml and reaper/reaper-job.yaml files to the server.
+  queue/ingest-job.yaml and reaper/reaper-job.yaml,
+  kubernetes/assignment-claim.yml, kubernetes/assignment-private.yml,
+  kubernetes/assignment-raw.yml and, if you want a visible claim to push files
+  from, kubernetes/jupyter-assignment.yml files to the server.
 2. Run `kubectl create -f redis-pod.yaml`
 3. Run `kubectl create -f redis-service.yaml`
 4. Run `kubectl create -f ingest-job.yaml`
 5. Run `kubectl create -f reaper-job.yaml`
 6. If it hasn't been applied before, apply the permissions in
   roles/tools/permissions/README.md
+7. Run `kubernetes/assignment-claim.yml`
+8. Run `kubernetes/assignment-private.yml`
+9. Run `kubernetes/assignment-raw.yml`
+10. Run `kubernetes/jupyter-assignment.yml`
+11. Attach the four volumes created in step 7 - 10 to the Jupyter deployment as
+  described in doc/03_jh_config.md.
+12. Generate keypair called ass_rsa.private & ass_rsa.public and add them as
+  explained in doc/04_shared_secrets.md.
 
 ## Default Setup Scheme
 The way I've aimed to set up the system is simple.

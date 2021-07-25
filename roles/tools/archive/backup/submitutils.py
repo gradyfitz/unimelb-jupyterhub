@@ -15,38 +15,50 @@ def relative_path(base_folder: str, full_path: str) -> str:
     """
     return os.popen("realpath --relative-to=\"{}\" \"{}\"".format(base_folder, full_path)).read().splitlines()[0]
 
-def file_list(folder: str) -> List[Dict[str, str]]:
+def file_list(folder: str, recursive: bool = False) -> List[Dict[str, str]]:
     """
     This takes the name of a folder and returns a list of all the items in that folder
-    as dictionaries containing the name of the file, the path of the file and the 
+    as dictionaries containing the name of the file, the path of the file and the
     modified timestamp in seconds and as a date-time string.
+
+    If recursive is true, add all children files of all folders.
     """
     list_of_files = []
-    for file in os.listdir(folder):
-        # Ignore all hidden files.
-        if file[0] == '.':
-            continue
-        new_dict = {}
-        full_path = os.path.join(folder, file)
-        m_time = os.path.getmtime(full_path)
-        new_dict['filename'] = file
-        new_dict['path'] = full_path
-        new_dict['relative_path'] = relative_path(folder, full_path)
-        new_dict['modified_s'] = m_time
-        new_dict['timestamp'] = time.ctime(m_time)
-        timestamp = datetime.datetime.fromtimestamp(m_time)
-        new_dict['timestampstring'] = "%d%02d%02d%02d%02d%02d" % (timestamp.year, timestamp.month, timestamp.day, timestamp.hour, timestamp.minute, timestamp.second)
-        list_of_files.append(new_dict)
-        filesize = os.path.getsize(full_path)
-        new_dict['raw_filesize'] = filesize
+    folders = [folder]
+    while len(folders) > 0:
+        subfolder = folders[-1]
+        folders.remove(subfolder)
+        for file in os.listdir(subfolder):
+            # Ignore all hidden files.
+            if file[0] == '.':
+                continue
+            new_dict = {}
+            full_path = os.path.join(subfolder, file)
+            # Ignore symlinks
+            if os.path.islink(full_path):
+                continue
+            m_time = os.path.getmtime(full_path)
+            new_dict['filename'] = file
+            new_dict['path'] = full_path
+            new_dict['relative_path'] = relative_path(folder, full_path)
+            new_dict['modified_s'] = m_time
+            new_dict['timestamp'] = time.ctime(m_time)
+            timestamp = datetime.datetime.fromtimestamp(m_time)
+            new_dict['timestampstring'] = "%d%02d%02d%02d%02d%02d" % (timestamp.year, timestamp.month, timestamp.day, timestamp.hour, timestamp.minute, timestamp.second)
+            list_of_files.append(new_dict)
+            filesize = os.path.getsize(full_path)
+            new_dict['raw_filesize'] = filesize
+            if os.path.isdir(full_path) and recursive and not os.path.islink(full_path):
+                folders.append(new_dict["path"])
+
     return list_of_files
 
 def get_file_hash(path: str) -> str:
     """
     This takes a file path and returns the hash of the file at that
     location.
-    
-    Borrowed from 
+
+    Borrowed from
     https://stackoverflow.com/questions/22058048/hashing-a-file-in-python
     """
     sha1 = hashlib.sha1()
@@ -81,7 +93,7 @@ def get_username() -> str:
     # first dash and drop the newline.
     awk_command = "hostname -s | awk 'BEGIN { FS = \"-\" } ; { print $2 }' | tr -d '\n'"
     return os.popen(awk_command).read()
-    
+
 def submit_to_queue(submit_mode="submit", username=None, assignment=None, zip_hash=None, submit_path=None) -> bool:
     """
         Submit mode is "submit" when user disk control is used as authorization.
@@ -99,12 +111,12 @@ def submit_to_queue(submit_mode="submit", username=None, assignment=None, zip_ha
 
 def monitor_queue(queue=None, complete_stage=None, monitor_file=None, submission_name=None) -> bool:
     """
-        Returns true/false if verify is complete_stage, 
+        Returns true/false if verify is complete_stage,
             returns true otherwise if it returns. This is in principle
             not parallel-friendly
     """
     r = redis.Redis(host="redis")
-    
+
     while True:
         item = r.lpop(queue)
         if item is None:
@@ -121,20 +133,20 @@ def monitor_queue(queue=None, complete_stage=None, monitor_file=None, submission
                 else:
                     words = item.decode("utf-8").split()
                     return words[2] == "true"
-    
+
 
 def finalise(message: str, complete_stage: str, submission_name: str) -> bool:
     """
     Returns true if the given message reports the stage given is
     completed for the given submission.
-    
+
     Messages usually in format:
         job_id stage signature submission_filename
     Except for verify step which broadcasts success or failure of execution:
         job_id stage success signature submission_filename
     And the setup step which broadcasts job data:
         job_id stage <submitted message data>
-    Setup is not a valid checkable as the message is, in 
+    Setup is not a valid checkable as the message is, in
         principle, ambiguous by design.
     """
     words = message.split()

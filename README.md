@@ -35,6 +35,10 @@ networks or availability zones or the image selected simply isn't available
 (the architecture isn't terribly demanding, so most images should work just as
 well).
 
+## Prerequisites
+1. Install Ansible -
+  https://docs.ansible.com/ansible/latest/installation_guide/index.html
+
 ## Deployment
 ---
 To deploy you'll need to follow a few simple steps
@@ -134,6 +138,17 @@ large file is, then `rm` the file. Take down the student's server from the
 JupyterHub admin and then bring it back again and you should be able to access
 their instance without it hanging.
 
+For Ceph, the process is slightly more complicated. There's a job description in
+roles/tools/idlepod, to use this tool, edit roles/tools/idlepod/inspect_pod.yml,
+changing the name and claimName to use the username of the student you wish to
+attach the storage on, then run `kubectl create -f inspect_pod.yml` to create
+the job. Following this, use `kubectl get pods | grep idlepod` to find the name
+of the pod (should be something like idlepod-username-ftfrp), using this name,
+run `kubectl exec -it idlepod-username-ftfrp -- /bin/bash`, which will start a
+bash terminal interactively (you may get an error until the pod is in the
+Running state). From here you can follow the `du -chs ./*` process to find the
+large files in question.
+
 ### Git Pull Fails for User
 If git pulling fails for the user, mv their existing directory to another
 location, reopen the server, and then cp the old files back over the top. You
@@ -221,6 +236,11 @@ NOTE: The Docker and Kubelet changes above would ideally be made in
   needed to turn it off with `sudo swapoff -a`
 - Note: Alternatively, the `./swapoff.sh <private key path>` script will perform
   the turning off of swap after a restart (idempotent).
+
+### Chaos Ensues and Pods aren't Scheduling
+One problem that can occur if the system loses network connectivity is that
+logging can go out of control. To handle this, run `truncate -s 0 file` on the
+log files which are multiple gigabytes.
 
 ## Ephemeral Issues
 These issues may be fixed before we need to do anything about them in practice.
