@@ -38,6 +38,8 @@ well).
 ## Prerequisites
 1. Install Ansible -
   https://docs.ansible.com/ansible/latest/installation_guide/index.html
+2. For OpenStack you may also need to install openstacksdk
+  `pip install openstacksdk`
 
 ## Deployment
 ---

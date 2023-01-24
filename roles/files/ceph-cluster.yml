@@ -8,6 +8,8 @@ spec:
     # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
     image: {{ ceph_image }}
     allowUnsupported: false
+  # This is where the configuration data for ceph is stored. I think this should be fairly static in size, but for now place it
+  # somewhere on an attached disk so it can be expanded if needed - the less which is on a fixed-size disk the better.
   dataDirHostPath: {{ ceph_data_path }}
   # To understand Rook's upgrade process of Ceph, read https://rook.io/docs/rook/master/ceph-upgrade.html#ceph-version-upgrades
   skipUpgradeChecks: false
@@ -20,6 +22,8 @@ spec:
     enabled: true
   storage:
     useAllNodes: true
-    useAllDevices: false
-    directories:
-      - path: {{ ceph_cluster_data }}
+    #useAllDevices: false
+    useAllDevices: true
+    # Deprecated
+    #directories:
+    #  - path: {{ ceph_cluster_data }}

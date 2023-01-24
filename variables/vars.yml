@@ -19,10 +19,13 @@ volume_region: "Melbourne"
 # possible, you should be able to simply add a host to the jupyterhub storage
 # group).
 attach_volumes: true
-# The number of gigabytes each attached volume should be.
-volume_size_gb: "10"
-# The number of instances to attach volumes to.
-volume_instances: 47
+# The number of gigabytes the operating volume (potentially images and ceph data) should be
+volume_size_gb: "30"
+
+# The number of gigabytes each attached volume (storage) should be.
+volume_storage_gb: "55"
+# The number of instances to attach volumes to - will attach both ceph and non-ceph volumes.
+volume_instances: 35
 # The name of the security group (this just needs to be consistent, no
 # convention is required)
 security_group_name: "JupyterHub-sg"
@@ -48,19 +51,24 @@ instance_name_suffix: "-compute"
 # on this is pretty basic, so if you have other instances that match the
 # prefix* pattern, please make it different here.
 volume_name_prefix: "JupyterHub-"
+# Volume prefix for ceph volumes
+storage_volume_name_prefix: "JupyterHub-storage-"
 # The suffix for volume names.
 volume_name_suffix: "-volume"
+# The suffix for ceph volume names.
+storage_volume_name_suffix: "-volume"
+
 # =============================================================================
 # The kind of compute instance to spin up (this will depend on what you have
 # allocated to use, so you may need to change it).
-instance_flavour: "uom.general.12c48g"
+instance_flavour: "uom.mse.12c48g"
 # Where to locate the node (this generally doesn't need to be changed).
 instance_region: "Melbourne"
 # What image to use. The original system will be built and tested with this
 # image, but a different image could be used, however the playbook will assume
 # Docker is installed.
 # NeCTAR Ubuntu 18.04 LTS (Bionic) amd64 (with Docker)
-instance_image: "215f9775-483c-4e0a-b703-d21a5c966f2e"
+instance_image: "fcf75aef-a951-4676-85d5-45d016673f66"
 # The name of the non-root user on the image.
 image_user: ubuntu
 # =============================================================================
@@ -71,7 +79,8 @@ instance_key_pair_name: "comp20008-jupyterhub-kp"
 # =============================================================================
 # The provider for the network, you may need to change this based on what
 # visibility you want to have for students.
-instance_network: "Classic Provider"
+#instance_network: "Classic Provider"
+instance_network: "qh2-uom"
 # What security groups to use.
 instance_security_groups: "{{ security_group_name }},default,http,ssh"
 # Where to mount the persistent volume.
@@ -117,8 +126,8 @@ install_ceph: True
 ceph_data_path: "/mnt/cephdisk/ceph"
 ceph_cluster_data: "/mnt/cephdisk/data"
 ceph_replications: "3"
-# For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
-ceph_image: "ceph/ceph:v14.2.5"
+# For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags -
+ceph_image: "ceph/ceph:v16.2.5-20210708"
 ceph_cluster_id: "rook-ceph"
 ceph_block_storage_name: "rook-ceph-block"
 # Best to use xfs for the ceph volume. This may also be a better choice when
@@ -132,6 +141,9 @@ ceph_shared_fs_name: "myfs"
 # Can be arbitrary as far as I know.
 ceph_volume_pool: "myfs-data0"
 ceph_shared_fs_storage_name: "csi-cephfs"
+
+# ======================= Network Region Settings ============================
+setup_proxy: False
 
 # ============================================================================
 # This variable determines where the nfs shares will be located, they will take
@@ -155,7 +167,18 @@ untainted_control_node: True
 # of power is given to students. Try not to sit too cutting edge as some errors
 # may not be well solved.
 # =============================================================================
-docker_version: "docker-ce=18.06.3~ce~3-0~ubuntu"
+docker_version: "docker-ce=5:19.03.13~3-0~ubuntu-bionic"
+docker_cli_version: "docker-ce-cli=5:19.03.13~3-0~ubuntu-bionic"
+docker_containerd_version: "containerd.io=1.3.7-1"
+
+# =============================================================================
+# Kubernetes versions - should be generally freely updatable and should be
+# upgraded where possible, some designations are changed across versions
+# so hopefully keeps this documentation at a fixed version.
+# =============================================================================
+kubelet_version: "kubelet=1.21.3-00"
+kubectl_version: "kubectl=1.21.3-00"
+kubeadm_version: "kubeadm=1.21.3-00"
 
 # ============================================================================
 # This variable determines what chart (and hence which version) to install
@@ -165,7 +188,8 @@ docker_version: "docker-ce=18.06.3~ce~3-0~ubuntu"
 #   sudo su -
 #   helm search jupyterhub
 # To find the actual version which is present and use that instead.
-jupyterhub_version: "0.8.2"
+# Chart version 1.1.1 corresponds to jupyterhub version 1.4.2
+jupyterhub_version: "1.1.1"
 
 # =============================================================================
 # The namespace for resources to be allocated in by Kubernetes for JupyterHub

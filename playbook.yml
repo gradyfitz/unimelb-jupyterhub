@@ -39,6 +39,27 @@
       with_sequence: start=1 end={{ volume_instances }}
       when: attach_volumes
 
+    - name: Create ceph volumes
+      os_volume:
+        api_timeout: 50 # Seconds(?)
+        auth:
+          auth_url: "{{ cloud_auth_url }}"
+          username: "{{ cloud_username }}"
+          password: "{{ cloud_password }}"
+          project_name: "{{ cloud_project_name }}"
+        display_name: "{{ storage_volume_name_prefix }}{{ item }}{{ storage_volume_name_suffix }}"
+        display_description: "Disk #{{ item }} - used for ceph storage, created through ansible"
+        availability_zone: "{{ volume_availability_zone }}" # Marked in docs as
+                                                            # for backwards
+                                                            # compatibility, but
+                                                            # required by NeCTAR
+        region_name: "{{ volume_region }}"
+        size: "{{ volume_storage_gb }}" # in GB
+        state: present
+        wait: yes # Wait until volume created
+      with_sequence: start=1 end={{ volume_instances }}
+      when: attach_volumes
+
     - name: Create security group
       os_security_group:
         api_timeout: 50 # Seconds(?)
@@ -125,7 +146,7 @@
 
     # Creates the instance with required properties.
     - name: Create instances with attached volume.
-      os_server:
+      openstack.cloud.server:
         api_timeout: 3600 # Seconds(?)
         timeout: 600
         auth:
@@ -143,13 +164,14 @@
         security_groups: "{{ instance_security_groups }}"
         volumes:
           - "{{ volume_name_prefix }}{{ item }}{{ volume_name_suffix }}"
+          - "{{ storage_volume_name_prefix }}{{ item }}{{ storage_volume_name_suffix }}"
         state: present
         wait: yes # Wait up to timeout seconds until instance created
       with_sequence: start=1 end={{ volume_instances }}
       when: attach_volumes
 
     - name: Create instances without attached volume.
-      os_server:
+      openstack.cloud.server:
         api_timeout: 3600 # Seconds(?)
         timeout: 600
         auth:
@@ -169,8 +191,8 @@
         wait: yes # Wait up to timeout seconds until instance created
       # Make end +1 also to ensure we never have to count backwards (Ansible
       # doesn't like you asking it to do that).
-      with_sequence: start={{ volume_instances + 1 }} end={{ instance_count + 1 }}
-      when: attach_volumes and item <= instance_count
+      with_sequence: start="{{ volume_instances + 1 }}" end="{{ instance_count + 1 }}"
+      when: "{{ attach_volumes }} and {{ item }} <= {{ instance_count }}"
 
     # Creates the instance with required properties (without volumes).
     - name: Create all instances without attached volume.
@@ -198,7 +220,7 @@
     # Need this to work out IP addresses of all nodes to run on, any other
     # method will suffice.
     - name: Get instance facts
-      os_server_facts:
+      openstack.cloud.server_info:
         api_timeout: 50 # Seconds(?)
         auth:
           auth_url: "{{ cloud_auth_url }}"
@@ -207,13 +229,15 @@
           project_name: "{{ cloud_project_name }}"
         server: "{{ instance_name_prefix }}*"
         wait: yes
+      register: ansible_facts
+
 
     # Uses above facts to set up list of all nodes to run on.
     - name: Add compute hosts to in-memory inventory
       add_host:
         groups: jupyterhub_nodes
         name: "{{ item['accessIPv4'] }}"
-      loop: "{{ openstack_servers }}"
+      loop: "{{ ansible_facts.openstack_servers }}"
 
     # This node is arbitrary, but can handle anything where a single origin node
     # is required to manage system setup correctly.
@@ -225,14 +249,14 @@
     - name: Elect cluster setup manager node
       add_host:
         groups: jupyterhub_head_node
-        name: "{{ (openstack_servers | first)['accessIPv4'] }}"
+        name: "{{ (ansible_facts.openstack_servers | first)['accessIPv4'] }}"
 
     # Store all nodes with storage attached.
     - name: Add hosts with storage attached to in-memory inventory
       add_host:
         groups: jupyterhub_storage_nodes
         name: "{{ item['accessIPv4'] }}"
-      loop: "{{ openstack_servers }}"
+      loop: "{{ ansible_facts.openstack_servers }}"
       when: (item['properties']['os-extended-volumes:volumes_attached'] | length) > 0
 
     # NOTE: known-hosts module is not idempotent either, so simple shell script
@@ -242,10 +266,10 @@
     # Trust all the newly created servers.
     - name: Add fingerprints to known hosts file
       shell: "ssh-keyscan -H {{ item['accessIPv4'] }} >> ~/.ssh/known_hosts"
-      loop: "{{ openstack_servers }}"
+      loop: "{{ ansible_facts.openstack_servers }}"
 
 - name: Wait for all machines to become ready
-  hosts: all
+  hosts: jupyterhub_nodes
   gather_facts: no
   tasks:
     - name: Wait for machines
@@ -291,6 +315,7 @@
         - "https_proxy=\"http://wwwproxy.unimelb.edu.au:8000\""
         - "ftp_proxy=\"http://wwwproxy.unimelb.edu.au:8000\""
         - "no_proxy=\"localhost,127.0.0.1,{{ inventory_hostname }},192.168.0.0/16,10.96.0.0/12,{{ groups['jupyterhub_nodes'] | join(',') }}\""
+      when: setup_proxy
 
     - name: Set up environment on all hosts (.bashrc)
       lineinfile:
@@ -302,6 +327,7 @@
         - "https_proxy=\"http://wwwproxy.unimelb.edu.au:8000\""
         - "ftp_proxy=\"http://wwwproxy.unimelb.edu.au:8000\""
         - "no_proxy=\"localhost,127.0.0.1,{{ inventory_hostname }},192.168.0.0/16,10.96.0.0/12,{{ groups['jupyterhub_nodes'] | join(',') }}\""
+      when: setup_proxy
 
     # Assume disk to mount is final disk in block devices.
     - name: Get disk to mount
@@ -391,6 +417,16 @@
         state: present
         name: "{{ docker_version }}"
 
+    - name: Install docker-cli
+      apt:
+        state: present
+        name: "{{ docker_cli_version }}"
+
+    - name: Install containerd
+      apt:
+        state: present
+        name: "{{ docker_containerd_version }}"
+
     - name: Install pip
       apt:
         state: present
@@ -466,9 +502,9 @@
         update_cache: yes
         name: "{{ item }}"
       loop:
-        - kubelet
-        - kubectl
-        - kubeadm
+        - "{{ kubelet_version }}"
+        - "{{ kubectl_version }}"
+        - "{{ kubeadm_version }}"
 
     - name: Restart kubelet
       systemd:
@@ -767,49 +803,52 @@
         creates: ./helm_initialised
       become: yes
 
-    - name: Initialise helm and tiller
-      command: helm init --service-account tiller --wait
-      args:
-        creates: ./helm_initialised
-      become: yes
+    # Helm init no longer required for version three.
+    # - name: Initialise helm and tiller
+    #   command: helm init --service-account tiller --wait
+    #   args:
+    #     creates: ./helm_initialised
+    #   become: yes
 
     - name: Mark Helm initialised
       file:
         path: ./helm_initialised
         state: touch
 
-- name: Set up helm clients on other nodes
-  hosts: jupyterhub_nodes:!jupyterhub_head_node
-  become_user: root
-  vars_files: variables/vars.yml
-  tasks:
-    - name: Initialise Helm for clients
-      command: helm init --client-only
-      args:
-        creates: ./helm_initialised
-      become: yes
+# Helm init no longer required for version three.
+#- name: Set up helm clients on other nodes
+#  hosts: jupyterhub_nodes:!jupyterhub_head_node
+#  become_user: root
+#  vars_files: variables/vars.yml
+  #tasks:
+    #- name: Initialise Helm for clients
+    #  command: helm init --client-only
+    #  args:
+    #    creates: ./helm_initialised
+    #  become: yes
 
-    - name: Mark Helm initialised
-      file:
-        path: ./helm_initialised
-        state: touch
+    #- name: Mark Helm initialised
+    #  file:
+    #    path: ./helm_initialised
+    #    state: touch
 
 - name: Secure helm on the master node
   hosts: jupyterhub_head_node
   become_user: root
   vars_files: variables/vars.yml
   tasks:
-    - name: Apply patch to limit where tiller listens
-      command: "kubectl patch deployment tiller-deploy --namespace=kube-system --type=json --patch='[{\"op\": \"add\", \"path\": \"/spec/template/spec/containers/0/command\", \"value\": [\"/tiller\", \"--listen=127.0.0.1:44134\"]}]'"
-      args:
-        creates: ./helm_secured
-      become: yes
+    # No longer required
+    # - name: Apply patch to limit where tiller listens
+    #   command: "kubectl patch deployment tiller-deploy --namespace=kube-system --type=json --patch='[{\"op\": \"add\", \"path\": \"/spec/template/spec/containers/0/command\", \"value\": [\"/tiller\", \"--listen=127.0.0.1:44134\"]}]'"
+    #   args:
+    #     creates: ./helm_secured
+    #   become: yes
 
-    - name: Apply patch to limit where tiller listens
-      command: "kubectl patch deployment tiller-deploy --namespace=kube-system --type=json --patch='[{\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/command\", \"value\": [\"/tiller\", \"--listen=127.0.0.1:44134\"]}]'"
-      args:
-        creates: ./helm_secured
-      become: yes
+    # - name: Apply patch to limit where tiller listens
+    #   command: "kubectl patch deployment tiller-deploy --namespace=kube-system --type=json --patch='[{\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/command\", \"value\": [\"/tiller\", \"--listen=127.0.0.1:44134\"]}]'"
+    #   args:
+    #     creates: ./helm_secured
+    #   become: yes
 
     - name: Wait for tiller pod to come up
       shell: kubectl get pods --namespace kube-system -o json
